@@ -94,12 +94,15 @@ class JianpuRenderer {
       }
 
       // Check if cumulativeBeats reached a new measure boundary
-      if (cumulativeBeats % this.beatsPerMeasure === 0 && cumulativeBeats > 0) {
+      if (Math.abs(cumulativeBeats % this.beatsPerMeasure) < 0.001 && cumulativeBeats > 0) {
         // Draw measure line at the END of current note (between note n and n+1)
-        const lineX = (idx + 1) * CELL_WIDTH - scrollX;
-        console.log(`  >>> DRAW MEASURE LINE at x=${lineX} (after note ${idx}, cumulative=${cumulativeBeats})`);
-        if (lineX > 0) {
-          this.drawMeasureLine(lineX);
+        // Line position is fixed on canvas (not offset by scroll)
+        const lineX = (idx + 1) * CELL_WIDTH;
+        console.log(`  >>> DRAW MEASURE LINE at canvas x=${lineX} (after note ${idx}, cumulative=${cumulativeBeats})`);
+        // Only draw if line is visible (within scrolled viewport)
+        const visualX = lineX - scrollX;
+        if (visualX > -CELL_WIDTH && visualX < this.canvas.width) {
+          this.drawMeasureLine(visualX);
         }
       }
     }
@@ -120,6 +123,7 @@ class JianpuRenderer {
    */
   drawNote(note, x, selected) {
     const parsed = parseNoteValue(note.value);
+    console.log(`drawNote: value="${note.value}" => prefix="${parsed.prefix}", note="${parsed.note}", beatLines=${parsed.beatLines}, isN=${parsed.isN}, isHigh=${parsed.isHighOctave}, isLow=${parsed.isLowOctave}`);
     const cx = x + CELL_WIDTH / 2;
     const cy = CELL_HEIGHT / 2;
 
@@ -142,12 +146,17 @@ class JianpuRenderer {
       this.drawDot(cx, cy + 30);
     }
 
-    // 5. Beat lines below
+    // 5. Beat lines below (6px spacing, starting at cy+32)
     if (parsed.beatLines > 0) {
-      this.drawBeatLines(cx, cy + 30, parsed.beatLines);
+      this.drawBeatLines(cx, cy + 32, parsed.beatLines);
     }
 
-    // 6. Suffix (to the right of note)
+    // 6. N modifier - small dot at lower right for extending previous note
+    if (parsed.isN) {
+      this.drawNDot(cx + 15, cy + 10);
+    }
+
+    // 7. Suffix (to the right of note)
     if (parsed.suffix === ':') {
       this.drawSuffix(':', cx + 18, cy);
     }
@@ -187,6 +196,14 @@ class JianpuRenderer {
     this.ctx.fill();
   }
 
+  // N modifier dot - smaller than octave dot
+  drawNDot(x, y) {
+    this.ctx.beginPath();
+    this.ctx.arc(x, y, DOT_SIZE * 0.7, 0, Math.PI * 2);
+    this.ctx.fillStyle = COLOR_DOT;
+    this.ctx.fill();
+  }
+
   drawNoteNumber(note, cx, cy, color = COLOR_NOTE) {
     this.ctx.font = `bold ${NOTE_SIZE}px sans-serif`;
     this.ctx.fillStyle = color;
@@ -211,7 +228,7 @@ class JianpuRenderer {
     this.ctx.lineWidth = LINE_WIDTH;
 
     for (let i = 0; i < count; i++) {
-      const ly = y + i * 8;
+      const ly = y + i * 6;
       this.ctx.beginPath();
       this.ctx.moveTo(cx - 12, ly);
       this.ctx.lineTo(cx + 12, ly);

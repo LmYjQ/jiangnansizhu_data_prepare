@@ -76,25 +76,38 @@ function parseNoteValue(value) {
   let isHighOctave = false;
   let isLowOctave = false;
   let beatLines = 0;
+  let isN = false;  // 延长音修饰符
 
   for (let i = 0; i < value.length; i++) {
     const char = value[i];
 
-    if ('8bxzc'.includes(char) && !note) {
-      if (char === '8') {
-        isHighOctave = true;
-      } else if (char === 'b') {
-        isLowOctave = true;
-      } else if (char === 'z') {
-        beatLines = 1;
-      } else if (char === 'x') {
-        beatLines = 2;
-      } else if (char === 'c') {
-        beatLines = 3;
-      }
-      prefix += char;
-    } else if ('12345670'.includes(char) && !note) {
+    // Handle note digit - once found, we stop capturing prefixes
+    if ('12345670'.includes(char) && !note) {
       note = char;
+      continue;
+    }
+
+    // Handle modifiers - can appear before OR after the note digit
+    if (char === '8' && !note) {
+      // Only '8' before note means high octave
+      isHighOctave = true;
+      prefix += char;
+    } else if (char === 'b' && !note) {
+      // Only 'b' before note means low octave
+      isLowOctave = true;
+      prefix += char;
+    } else if (char === 'z') {
+      beatLines = 1;
+      prefix += char;
+    } else if (char === 'x') {
+      beatLines = 2;
+      prefix += char;
+    } else if (char === 'c') {
+      beatLines = 3;
+      prefix += char;
+    } else if (char === 'N') {
+      isN = true;
+      prefix += char;
     } else if (char === ':') {
       suffix += char;
     } else if (char === '!') {
@@ -109,7 +122,8 @@ function parseNoteValue(value) {
     suffix,
     isHighOctave,
     isLowOctave,
-    beatLines
+    beatLines,
+    isN
   };
 }
 
