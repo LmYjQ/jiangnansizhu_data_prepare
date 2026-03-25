@@ -25,6 +25,18 @@
           <label>小节线(拍)</label>
           <input type="number" id="beats-per-measure" value="4" min="1" max="16" />
         </div>
+        <div class="input-group narrow">
+          <label>缩放</label>
+          <input type="range" id="zoom-level" value="100" min="50" max="200" step="10" />
+          <span id="zoom-display">100%</span>
+        </div>
+        <div class="input-group narrow">
+          <label>展示</label>
+          <select id="view-mode">
+            <option value="single">单行</option>
+            <option value="all">全部</option>
+          </select>
+        </div>
         <div class="spacer"></div>
         <button id="btn-import">导入JSON</button>
         <button id="btn-export">导出JSON</button>
@@ -36,7 +48,12 @@
       <!-- Canvas Area -->
       <div class="canvas-area">
         <div class="canvas-scroll" id="canvas-scroll">
-          <canvas id="jianpu-canvas"></canvas>
+          <!-- Single row mode -->
+          <div id="single-row-view">
+            <canvas id="jianpu-canvas"></canvas>
+          </div>
+          <!-- All rows mode (dynamically generated) -->
+          <div id="all-rows-view" style="display: none;"></div>
         </div>
       </div>
 

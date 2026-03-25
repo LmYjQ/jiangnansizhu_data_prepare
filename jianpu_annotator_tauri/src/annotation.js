@@ -68,6 +68,36 @@ class AnnotationProject {
   }
 }
 
+// MultiRowAnnotationProject - contains multiple rows as a single project
+class MultiRowAnnotationProject {
+  constructor(projects) {
+    this.projects = projects;
+  }
+
+  toDict() {
+    return {
+      type: 'multi-row',
+      rows: this.projects.map(p => p.toDict())
+    };
+  }
+
+  static fromDict(data) {
+    if (data.type !== 'multi-row') {
+      throw new Error('Not a multi-row project');
+    }
+    const projects = data.rows.map(r => AnnotationProject.fromDict(r));
+    return new MultiRowAnnotationProject(projects);
+  }
+
+  toJson() {
+    return JSON.stringify(this.toDict(), null, 2);
+  }
+
+  static fromJson(jsonStr) {
+    return MultiRowAnnotationProject.fromDict(JSON.parse(jsonStr));
+  }
+}
+
 // Parse note value - extracts prefix, note, suffix, octave info
 function parseNoteValue(value) {
   let prefix = "";
@@ -218,6 +248,7 @@ function loadParsedNotesCsv(csvContent) {
 export {
   NoteAnnotation,
   AnnotationProject,
+  MultiRowAnnotationProject,
   parseNoteValue,
   cleanNoteValue,
   loadNotesFromCsvRow,

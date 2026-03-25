@@ -26,15 +26,25 @@ class JianpuRenderer {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.beatsPerMeasure = 4;
+    this.zoomScale = 1.0;
   }
 
   /**
    * Resize canvas based on number of notes
    */
-  resize(noteCount) {
-    const width = Math.max(noteCount * CELL_WIDTH, 800);
+  resize(noteCount, rowCount = 1) {
+    const cellHeight = CELL_HEIGHT * this.zoomScale;
+    const width = Math.max(noteCount * CELL_WIDTH * this.zoomScale, 800);
+    const height = cellHeight * rowCount;
     this.canvas.width = width;
-    this.canvas.height = CELL_HEIGHT;
+    this.canvas.height = height;
+  }
+
+  /**
+   * Set zoom level
+   */
+  setZoom(scale) {
+    this.zoomScale = scale;
   }
 
   /**
@@ -66,105 +76,118 @@ class JianpuRenderer {
   }
 
   /**
-   * Draw all notes
+   * Draw all notes (single row mode)
    */
   draw(notes, selectedIdx, scrollX) {
+    this.drawMultipleRows([notes], selectedIdx, 0, scrollX);
+  }
+
+  /**
+   * Draw multiple rows (all mode)
+   * @param {Array} allRows - Array of note arrays, one per row
+   * @param {number} selectedIdx - Global selected note index across all rows
+   * @param {number} selectedRow - Which row is selected
+   * @param {number} scrollX - Horizontal scroll offset
+   */
+  drawMultipleRows(allRows, selectedIdx, selectedRow, scrollX) {
     this.clear();
 
-    let cumulativeBeats = 0;
+    const scaledCellWidth = CELL_WIDTH * this.zoomScale;
+    const scaledCellHeight = CELL_HEIGHT * this.zoomScale;
 
-    console.log(`=== draw start, beatsPerMeasure=${this.beatsPerMeasure}, total=${notes.length} notes ===`);
+    for (let row = 0; row < allRows.length; row++) {
+      const notes = allRows[row];
+      const rowY = row * scaledCellHeight;
+      let cumulativeBeats = 0;
 
-    for (let idx = 0; idx < notes.length; idx++) {
-      const x = idx * CELL_WIDTH - scrollX;
-      if (x < -CELL_WIDTH || x > this.canvas.width) continue;
+      for (let idx = 0; idx < notes.length; idx++) {
+        const x = idx * scaledCellWidth - scrollX;
+        if (x < -scaledCellWidth || x > this.canvas.width) continue;
 
-      this.drawNote(notes[idx], x, idx === selectedIdx);
+        const isSelected = (row === selectedRow && idx === selectedIdx);
+        this.drawNote(notes[idx], x, rowY, isSelected);
 
-      const { beats, isN } = this.getNoteInfo(notes[idx]);
+        const { beats, isN } = this.getNoteInfo(notes[idx]);
 
-      if (isN && idx > 0) {
-        // N: extend previous note by half its beats
-        const prevInfo = this.getNoteInfo(notes[idx - 1]);
-        cumulativeBeats += prevInfo.beats * 0.5;
-        console.log(`  note ${idx}: N modifier, adding ${prevInfo.beats * 0.5} to cumulative=${cumulativeBeats}`);
-      } else {
-        cumulativeBeats += beats;
-        console.log(`  note ${idx}: adding ${beats} to cumulative=${cumulativeBeats}`);
-      }
+        if (isN && idx > 0) {
+          const prevInfo = this.getNoteInfo(notes[idx - 1]);
+          cumulativeBeats += prevInfo.beats * 0.5;
+        } else {
+          cumulativeBeats += beats;
+        }
 
-      // Check if cumulativeBeats reached a new measure boundary
-      if (Math.abs(cumulativeBeats % this.beatsPerMeasure) < 0.001 && cumulativeBeats > 0) {
-        // Draw measure line at the END of current note (between note n and n+1)
-        // Line position is fixed on canvas (not offset by scroll)
-        const lineX = (idx + 1) * CELL_WIDTH;
-        console.log(`  >>> DRAW MEASURE LINE at canvas x=${lineX} (after note ${idx}, cumulative=${cumulativeBeats})`);
-        // Only draw if line is visible (within scrolled viewport)
-        const visualX = lineX - scrollX;
-        if (visualX > -CELL_WIDTH && visualX < this.canvas.width) {
-          this.drawMeasureLine(visualX);
+        if (Math.abs(cumulativeBeats % this.beatsPerMeasure) < 0.001 && cumulativeBeats > 0) {
+          const lineX = (idx + 1) * scaledCellWidth;
+          const visualX = lineX - scrollX;
+          if (visualX > -scaledCellWidth && visualX < this.canvas.width) {
+            this.drawMeasureLine(visualX, rowY, scaledCellHeight);
+          }
         }
       }
     }
-    console.log(`=== draw end, final cumulativeBeats=${cumulativeBeats} ===`);
   }
 
-  drawMeasureLine(x) {
+  drawMeasureLine(x, rowY, rowHeight) {
     this.ctx.strokeStyle = "#999999";
     this.ctx.lineWidth = 1;
     this.ctx.beginPath();
-    this.ctx.moveTo(x, 0);
-    this.ctx.lineTo(x, this.canvas.height);
+    this.ctx.moveTo(x, rowY);
+    this.ctx.lineTo(x, rowY + rowHeight);
     this.ctx.stroke();
   }
 
   /**
    * Draw a single note
    */
-  drawNote(note, x, selected) {
+  drawNote(note, x, rowY, selected) {
     const parsed = parseNoteValue(note.value);
-    console.log(`drawNote: value="${note.value}" => prefix="${parsed.prefix}", note="${parsed.note}", beatLines=${parsed.beatLines}, isN=${parsed.isN}, isHigh=${parsed.isHighOctave}, isLow=${parsed.isLowOctave}`);
-    const cx = x + CELL_WIDTH / 2;
-    const cy = CELL_HEIGHT / 2;
+    const scaledCellWidth = CELL_WIDTH * this.zoomScale;
+    const scaledNoteSize = NOTE_SIZE * this.zoomScale;
+    const scaledDotSize = DOT_SIZE * this.zoomScale;
+    const scaledMarkerSize = MARKER_SIZE * this.zoomScale;
+
+    const cx = x + scaledCellWidth / 2;
+    const cy = rowY + CELL_HEIGHT * this.zoomScale / 2;
 
     // 1. Draw selected background
     if (selected) {
-      this.drawSelectedBg(x, 0);
+      this.drawSelectedBg(x, rowY, scaledCellWidth, CELL_HEIGHT * this.zoomScale);
     }
 
     // 2. High octave dot (directly above note center)
     if (parsed.isHighOctave) {
-      this.drawDot(cx, cy - 30);
+      this.drawDot(cx, cy - 30 * this.zoomScale, scaledDotSize);
     }
 
     // 3. Note number (colored by annotation)
     const noteColor = this.getNoteColor(note);
-    this.drawNoteNumber(parsed.note || "?", cx, cy, noteColor);
+    this.drawNoteNumber(parsed.note || "?", cx, cy, noteColor, scaledNoteSize);
 
     // 4. Low octave dot (directly below note center)
     if (parsed.isLowOctave) {
-      this.drawDot(cx, cy + 30);
+      this.drawDot(cx, cy + 30 * this.zoomScale, scaledDotSize);
     }
 
-    // 5. Beat lines below (6px spacing, starting at cy+32)
+    // 5. Beat lines below (6px spacing, scaled)
     if (parsed.beatLines > 0) {
-      this.drawBeatLines(cx, cy + 32, parsed.beatLines);
+      this.drawBeatLines(cx, cy + 32 * this.zoomScale, parsed.beatLines, this.zoomScale);
     }
 
     // 6. N modifier - small dot at lower right for extending previous note
     if (parsed.isN) {
-      this.drawNDot(cx + 15, cy + 10);
+      this.drawNDot(cx + 15 * this.zoomScale, cy + 10 * this.zoomScale, scaledDotSize * 0.7);
     }
 
     // 7. Suffix (to the right of note)
     if (parsed.suffix === ':') {
-      this.drawSuffix(':', cx + 18, cy);
+      this.drawSuffix(':', cx + 18 * this.zoomScale, cy, 16 * this.zoomScale);
     }
   }
 
-  drawSelectedBg(x, y) {
+  drawSelectedBg(x, y, width, height) {
     this.ctx.fillStyle = COLOR_SELECTED_BG;
-    this.ctx.fillRect(x + 2, y + 2, CELL_WIDTH - 4, CELL_HEIGHT - 4);
+    this.ctx.fillRect(x + 2 * this.zoomScale, y + 2 * this.zoomScale,
+                      width - 4 * this.zoomScale, height - 4 * this.zoomScale);
   }
 
   drawMarkers(note, cx, y) {
@@ -175,37 +198,38 @@ class JianpuRenderer {
 
     if (markers.length === 0) return;
 
-    const startX = cx - (markers.length - 1) * 18 / 2;
+    const scaledMarkerSize = MARKER_SIZE * this.zoomScale;
+    const startX = cx - (markers.length - 1) * 18 * this.zoomScale / 2;
     markers.forEach((marker, i) => {
-      const mx = startX + i * 18;
-      this.drawMarkerCircle(mx, y, marker.color);
+      const mx = startX + i * 18 * this.zoomScale;
+      this.drawMarkerCircle(mx, y, marker.color, scaledMarkerSize);
     });
   }
 
-  drawMarkerCircle(x, y, color) {
+  drawMarkerCircle(x, y, color, size) {
     this.ctx.beginPath();
-    this.ctx.arc(x, y, MARKER_SIZE, 0, Math.PI * 2);
+    this.ctx.arc(x, y, size, 0, Math.PI * 2);
     this.ctx.fillStyle = color;
     this.ctx.fill();
   }
 
-  drawDot(x, y) {
+  drawDot(x, y, size) {
     this.ctx.beginPath();
-    this.ctx.arc(x, y, DOT_SIZE, 0, Math.PI * 2);
+    this.ctx.arc(x, y, size, 0, Math.PI * 2);
     this.ctx.fillStyle = COLOR_DOT;
     this.ctx.fill();
   }
 
   // N modifier dot - smaller than octave dot
-  drawNDot(x, y) {
+  drawNDot(x, y, size) {
     this.ctx.beginPath();
-    this.ctx.arc(x, y, DOT_SIZE * 0.7, 0, Math.PI * 2);
+    this.ctx.arc(x, y, size, 0, Math.PI * 2);
     this.ctx.fillStyle = COLOR_DOT;
     this.ctx.fill();
   }
 
-  drawNoteNumber(note, cx, cy, color = COLOR_NOTE) {
-    this.ctx.font = `bold ${NOTE_SIZE}px sans-serif`;
+  drawNoteNumber(note, cx, cy, color = COLOR_NOTE, size = NOTE_SIZE) {
+    this.ctx.font = `bold ${size}px sans-serif`;
     this.ctx.fillStyle = color;
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'middle';
@@ -223,21 +247,21 @@ class JianpuRenderer {
     return COLOR_NOTE;
   }
 
-  drawBeatLines(cx, y, count) {
+  drawBeatLines(cx, y, count, scale) {
     this.ctx.strokeStyle = COLOR_DOT;
-    this.ctx.lineWidth = LINE_WIDTH;
+    this.ctx.lineWidth = LINE_WIDTH * scale;
 
     for (let i = 0; i < count; i++) {
-      const ly = y + i * 6;
+      const ly = y + i * 6 * scale;
       this.ctx.beginPath();
-      this.ctx.moveTo(cx - 12, ly);
-      this.ctx.lineTo(cx + 12, ly);
+      this.ctx.moveTo(cx - 12 * scale, ly);
+      this.ctx.lineTo(cx + 12 * scale, ly);
       this.ctx.stroke();
     }
   }
 
-  drawSuffix(suffix, x, y) {
-    this.ctx.font = `16px sans-serif`;
+  drawSuffix(suffix, x, y, fontSize = 16) {
+    this.ctx.font = `${fontSize}px sans-serif`;
     this.ctx.fillStyle = COLOR_DOT;
     this.ctx.textAlign = 'left';
     this.ctx.textBaseline = 'middle';
@@ -248,7 +272,8 @@ class JianpuRenderer {
    * Hit test - returns note index at given x position
    */
   hitTest(x, scrollX) {
-    const idx = Math.floor((x + scrollX) / CELL_WIDTH);
+    const scaledCellWidth = CELL_WIDTH * this.zoomScale;
+    const idx = Math.floor((x + scrollX) / scaledCellWidth);
     return idx;
   }
 }
