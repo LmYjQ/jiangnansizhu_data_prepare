@@ -152,8 +152,11 @@ function decodeUnicodeEscapes(text) {
 function cleanNoteValue(note) {
   // 移除 À...Á 前缀技法块
   note = note.replace(/\u00C0[^\u00C1]*\u00C1/g, '');
-  // 移除 ш...щ 后缀技法块
-  note = note.replace(/\u0448[^\u0449]*\u0449/g, '');
+  // 如果有 ш...щ 后缀技法块，转换为前缀 x
+  if (/\u0448/.test(note)) {
+    note = note.replace(/\u0448[^\u0449]*\u0449/g, '');
+    note = 'x' + note;
+  }
   // 移除装饰音 !...@
   note = note.replace(/![^@]*@/g, '');
 
