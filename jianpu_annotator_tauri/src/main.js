@@ -33,6 +33,7 @@ const elements = {
   btnLoadLine: document.getElementById('btn-load-line'),
   btnImport: document.getElementById('btn-import'),
   btnExport: document.getElementById('btn-export'),
+  btnAutoBan: document.getElementById('btn-auto-ban'),
   canvasScroll: document.getElementById('canvas-scroll'),
   singleRowView: document.getElementById('single-row-view'),
   allRowsView: document.getElementById('all-rows-view'),
@@ -276,6 +277,80 @@ async function onExport() {
   }
 }
 
+// Auto-ban: mark the first note of each measure as ban
+function onAutoBan() {
+  const beatsPerMeasure = parseInt(elements.beatsPerMeasure.value, 10) || 4;
+
+  if (state.viewMode === 'all' && state.allProjects.length > 0) {
+    // Apply to all rows
+    let totalMarked = 0;
+    state.allProjects.forEach((project) => {
+      let cumulativeBeats = 0;
+      let measureStartIdx = 0;
+
+      for (let idx = 0; idx < project.notes.length; idx++) {
+        const note = project.notes[idx];
+
+        // Get note beats from renderer
+        const { beats, isN } = renderer.getNoteInfo(note);
+
+        if (isN && idx > 0) {
+          const prevInfo = renderer.getNoteInfo(project.notes[idx - 1]);
+          cumulativeBeats += prevInfo.beats * 0.5;
+        } else {
+          cumulativeBeats += beats;
+        }
+
+        // Check if we completed a measure
+        if (cumulativeBeats >= beatsPerMeasure && idx > 0) {
+          // Mark the first note of the new measure
+          if (!project.notes[measureStartIdx].ban) {
+            project.notes[measureStartIdx].ban = 1;
+            totalMarked++;
+          }
+          measureStartIdx = idx;
+          cumulativeBeats = cumulativeBeats % beatsPerMeasure;
+        }
+      }
+    });
+    setStatus(`自动标注板完成，共标注 ${totalMarked} 个小节起始音`);
+  } else if (state.project) {
+    // Apply to single row
+    let cumulativeBeats = 0;
+    let measureStartIdx = 0;
+    let totalMarked = 0;
+
+    for (let idx = 0; idx < state.project.notes.length; idx++) {
+      const note = state.project.notes[idx];
+
+      const { beats, isN } = renderer.getNoteInfo(note);
+
+      if (isN && idx > 0) {
+        const prevInfo = renderer.getNoteInfo(state.project.notes[idx - 1]);
+        cumulativeBeats += prevInfo.beats * 0.5;
+      } else {
+        cumulativeBeats += beats;
+      }
+
+      // Check if we completed a measure
+      if (cumulativeBeats >= beatsPerMeasure && idx > 0) {
+        if (!state.project.notes[measureStartIdx].ban) {
+          state.project.notes[measureStartIdx].ban = 1;
+          totalMarked++;
+        }
+        measureStartIdx = idx;
+        cumulativeBeats = cumulativeBeats % beatsPerMeasure;
+      }
+    }
+    setStatus(`自动标注板完成，共标注 ${totalMarked} 个小节起始音`);
+  } else {
+    setStatus('请先加载简谱数据');
+    return;
+  }
+
+  redrawCanvas();
+}
+
 // Single-row canvas click handler
 function onSingleCanvasClick(e) {
   if (!state.project || state.viewMode === 'all') return;
@@ -406,6 +481,7 @@ elements.btnBrowse.addEventListener('click', onPickCsv);
 elements.btnLoadLine.addEventListener('click', onLoadLine);
 elements.btnImport.addEventListener('click', onImport);
 elements.btnExport.addEventListener('click', onExport);
+elements.btnAutoBan.addEventListener('click', onAutoBan);
 elements.canvas.addEventListener('click', onSingleCanvasClick);
 elements.canvasScroll.addEventListener('scroll', onCanvasScroll);
 elements.beatsPerMeasure.addEventListener('change', redrawCanvas);
