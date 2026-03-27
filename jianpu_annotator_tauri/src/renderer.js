@@ -75,6 +75,8 @@ class JianpuRenderer {
     return { beats, isN: parsed.prefix.includes('N') };
   }
 
+  
+
   /**
    * Draw all notes (single row mode)
    */
@@ -82,7 +84,7 @@ class JianpuRenderer {
     this.drawMultipleRows([notes], selectedIdx, 0, scrollX);
   }
 
-  /**
+/**
    * Draw multiple rows (all mode)
    * @param {Array} allRows - Array of note arrays, one per row
    * @param {number} selectedIdx - Global selected note index across all rows
@@ -98,29 +100,69 @@ class JianpuRenderer {
     for (let row = 0; row < allRows.length; row++) {
       const notes = allRows[row];
       const rowY = row * scaledCellHeight;
+      
+      // 第一步：计算所有音符的节拍信息（用于小节线）
+      const noteBeatsInfo = [];
       let cumulativeBeats = 0;
-
+      
+      for (let idx = 0; idx < notes.length; idx++) {
+        const note = notes[idx];
+        const noteInfo = this.getNoteInfo(note);
+        
+        let beatValue = noteInfo.beats;
+        
+        // 处理N修饰符：如果是N，使用前一个音符的时值的一半
+        if (noteInfo.isN && idx > 0) {
+          const prevBeatValue = noteBeatsInfo[idx - 1].beatValue;
+          beatValue = prevBeatValue * 0.5;
+        }
+        
+        noteBeatsInfo.push({
+          note: note,
+          beatValue: beatValue,
+          cumulativeStart: cumulativeBeats,
+          cumulativeEnd: cumulativeBeats + beatValue
+        });
+        
+        cumulativeBeats += beatValue;
+      }
+      
+      // 第二步：绘制所有音符（保持原来的绘制方式）
       for (let idx = 0; idx < notes.length; idx++) {
         const x = idx * scaledCellWidth - scrollX;
         if (x < -scaledCellWidth || x > this.canvas.width) continue;
 
         const isSelected = (row === selectedRow && idx === selectedIdx);
         this.drawNote(notes[idx], x, rowY, isSelected);
-
-        const { beats, isN } = this.getNoteInfo(notes[idx]);
-
-        if (isN && idx > 0) {
-          const prevInfo = this.getNoteInfo(notes[idx - 1]);
-          cumulativeBeats += prevInfo.beats * 0.5;
-        } else {
-          cumulativeBeats += beats;
-        }
-
-        if (Math.abs(cumulativeBeats % this.beatsPerMeasure) < 0.001 && cumulativeBeats > 0) {
-          const lineX = (idx + 1) * scaledCellWidth;
-          const visualX = lineX - scrollX;
-          if (visualX > -scaledCellWidth && visualX < this.canvas.width) {
-            this.drawMeasureLine(visualX, rowY, scaledCellHeight);
+      }
+      
+      // 第三步：绘制小节线（基于节拍位置，而不是音符索引）
+      const totalBeats = cumulativeBeats;
+      const measureCount = Math.floor(totalBeats / this.beatsPerMeasure);
+      
+      for (let measure = 1; measure <= measureCount; measure++) {
+        const measureBeats = measure * this.beatsPerMeasure;
+        
+        // 找到包含这个小节线的音符
+        for (let idx = 0; idx < noteBeatsInfo.length; idx++) {
+          const info = noteBeatsInfo[idx];
+          
+          if (measureBeats > info.cumulativeStart && measureBeats <= info.cumulativeEnd) {
+            // 计算小节线在这个音符中的比例位置
+            const ratio = (measureBeats - info.cumulativeStart) / info.beatValue;
+            
+            // 关键修改：小节线的X坐标基于音符的起始位置 + 比例 * 单元格宽度
+            // 音符的起始位置仍然是 idx * scaledCellWidth
+            const noteStartX = idx * scaledCellWidth;
+            const measureX = noteStartX + ratio * scaledCellWidth;
+            const visualX = measureX - scrollX;
+            
+            // 只绘制在可见区域内的小节线
+            if (visualX >= -scaledCellWidth && visualX <= this.canvas.width + scaledCellWidth) {
+              this.drawMeasureLine(visualX, rowY, scaledCellHeight);
+            }
+            
+            break; // 找到位置后跳出内层循环
           }
         }
       }
