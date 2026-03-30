@@ -166,7 +166,7 @@ def export_to_csv(data, output_dir):
 
 if __name__ == '__main__':
     # 默认使用桌面上的示例文件
-    default_path = r'd:\code\music\qmx_reader\36.qmx'
+    default_path = r'd:\code\music\qmx_reader\36_fix.qmx'
 
     if len(sys.argv) > 1:
         qmx_path = sys.argv[1]

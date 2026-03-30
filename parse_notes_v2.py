@@ -83,7 +83,7 @@ def tokenize(data: str) -> list[Token]:
             i += 1
             continue
 
-        # 5. 前缀修饰符：8(高八度) b(低八度) z(八分) x(十六分) c(三十二分)   
+        # 5. 前缀修饰符：8(高八度) b(低八度) z(八分) x(十六分) c(三十二分)
         if char in '8bxzc':
             tokens.append(Token(TokenType.PREFIX_MOD, char))
             i += 1
@@ -166,13 +166,30 @@ def parse_tokens(tokens: list[Token]) -> list[str]:
 
 
 # ============================================================
-# 第四层：入口函数
+# 第四层：入口函数 v2 - 按空格分拍，拍内用 | 连接
 # ============================================================
 
-def parse_note(data: str) -> list[str]:
-    """解析简谱字符串，返回音符列表"""
-    tokens = tokenize(data)
-    return parse_tokens(tokens)
+def parse_note_v2(data: str) -> str:
+    """
+    解析简谱字符串，v2 版本：
+    - 先按空格切分，每段是一拍
+    - 每拍内部用 tokenize + parse_tokens 处理
+    - 拍内音符用 | 连接，拍间用空格连接
+    """
+    # 按空格分割成拍
+    beats = data.split()
+
+    result_beats = []
+    for beat in beats:
+        if beat.strip() == "":
+            continue
+        tokens = tokenize(beat)
+        notes = parse_tokens(tokens)
+        # 拍内用 | 连接
+        result_beats.append('|'.join(notes))
+
+    # 拍间用空格连接
+    return ' '.join(result_beats)
 
 
 # ============================================================
@@ -181,7 +198,7 @@ def parse_note(data: str) -> list[str]:
 
 if __name__ == '__main__':
     input_file = './qmx_output/mem.csv'
-    output_file = './qmx_output/parsed_notes.csv'
+    output_file = './qmx_output/parsed_notes_v2.csv'
 
     all_unknown_chars = {}  # {字符: [行号列表]}
 
@@ -194,8 +211,7 @@ if __name__ == '__main__':
     for row in rows:
         if len(row) > 9 and row[7] == 'QMMFont':
             datap = row[9]
-            tokens = tokenize(datap)
-            notes = parse_note(datap)
+            notes_str = parse_note_v2(datap)
 
             # 收集未识别字符（带行号）
             unknown_chars = check_unknown_chars(datap)
@@ -204,8 +220,8 @@ if __name__ == '__main__':
                     all_unknown_chars[c] = []
                 all_unknown_chars[c].append(reader.line_num)
 
-            # 音符用 | 分隔
-            output_rows.append([datap, '|'.join(notes)])
+            # 直接保存 v2 解析结果
+            output_rows.append([datap, notes_str])
         else:
             # 其他行不需要处理，跳过
             pass
