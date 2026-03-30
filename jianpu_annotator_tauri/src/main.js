@@ -393,15 +393,7 @@ function onAutoBan() {
         { note },
       );
 
-      if (isN && idx > 0) {
-        const prevInfo = renderer.getNoteInfo(state.project.notes[idx - 1]);
-        cumulativeBeats += prevInfo.beats * 0.5;
-        console.log(
-          `[AutoBan] 单行模式 idx=${idx} 是N符，加前音符 ${prevInfo.beats}*0.5=${prevInfo.beats * 0.5}`,
-        );
-      } else {
-        cumulativeBeats += beats;
-      }
+      cumulativeBeats += beats;
 
       // Check if we completed a measure
       if (cumulativeBeats >= beatsPerMeasure && idx > 0) {
