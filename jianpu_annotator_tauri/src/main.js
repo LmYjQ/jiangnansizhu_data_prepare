@@ -54,7 +54,6 @@ renderer.resize(1);
 // Event handlers
 async function onPickCsv() {
   try {
-
     const selected = await open({
       title: "选择 parsed_notes.csv",
       filters: [{ name: "CSV", extensions: ["csv"] }],
@@ -117,6 +116,12 @@ async function onLoadLine() {
     return;
   }
 
+  // ======================
+  // ✅ 强制切回单行模式（修复关键）
+  // ======================
+  state.viewMode = "single";
+  elements.viewMode.value = "single";
+
   // Create annotation project
   const notes = rowData.notes.map((v, i) => new NoteAnnotation(i, v, 0, 0, 0));
   state.project = new AnnotationProject(rowData.source, notes);
@@ -124,25 +129,20 @@ async function onLoadLine() {
   state.selectedRow = 0;
   state.scrollX = 0;
 
-  // Prepare all projects for "all" mode
-  state.allProjects = state.csvData.map((row, idx) => {
-    const rowNotes = row.notes.map((v, i) => new NoteAnnotation(i, v, 0, 0, 0));
-    return new AnnotationProject(row.source, rowNotes);
-  });
-
   // Resize canvas
   const zoomScale = parseInt(elements.zoomLevel.value, 10) / 100;
   renderer.setZoom(zoomScale);
 
-  if (state.viewMode === "all") {
-    setupAllRowsView();
-  } else {
-    renderer.resize(notes.length);
-  }
+  // ======================
+  // ✅ 强制显示单行、隐藏多行（修复关键）
+  // ======================
+  elements.singleRowView.style.display = "block";
+  elements.allRowsView.style.display = "none";
+
+  renderer.resize(notes.length);
   redrawCanvas();
   setStatus(`加载第 ${lineNum} 行，共 ${notes.length} 个音符`);
 }
-
 // Setup multiple rows for "all" mode
 function setupAllRowsView() {
   elements.singleRowView.style.display = "none";
@@ -300,139 +300,84 @@ async function onExport() {
 // Auto-ban: mark the first note of each measure as ban
 function onAutoBan() {
   const beatsPerMeasure = parseInt(elements.beatsPerMeasure.value, 10) || 4;
-  console.log("[AutoBan] 开始自动标注板", {
+  console.log("[AutoBan] 正确自动标注小节板（每小节第一音）", {
     beatsPerMeasure,
-    viewMode: state.viewMode,
   });
 
+  // 统一获取要处理的段落
+  let projects = [];
   if (state.viewMode === "all" && state.allProjects.length > 0) {
-    // Apply to all rows
-    let totalMarked = 0;
-    state.allProjects.forEach((project) => {
-      let cumulativeBeats = 0;
-      let measureStartIdx = 0;
-
-      // 先把每一行的第一个音标注为 ban
-      if (project.notes.length > 0 && !project.notes[0].ban) {
-        project.notes[0].ban = 1;
-        totalMarked++;
-        console.log(`[AutoBan] all模式 project 第一音 idx=0 标注ban=1`);
-      }
-
-      for (let idx = 0; idx < project.notes.length; idx++) {
-        const note = project.notes[idx];
-
-        // Get note beats from renderer
-        const { beats, isN } = renderer.getNoteInfo(note);
-        console.log(
-          `[AutoBan] all模式 project[0] idx=${idx} note.value=${note.value} beats=${beats} isN=${isN} cumulativeBeats=${cumulativeBeats.toFixed(2)}`,
-          { note },
-        );
-
-        if (isN && idx > 0) {
-          const prevInfo = renderer.getNoteInfo(project.notes[idx - 1]);
-          cumulativeBeats += prevInfo.beats * 0.5;
-          console.log(
-            `[AutoBan] all模式 idx=${idx} 是N符，加前音符 ${prevInfo.beats}*0.5=${prevInfo.beats * 0.5} 到 cumulativeBeats`,
-          );
-        } else {
-          cumulativeBeats += beats;
-        }
-
-        // Check if we completed a measure
-        if (cumulativeBeats >= beatsPerMeasure && idx > 0) {
-          console.log(
-            `[AutoBan] all模式 idx=${idx} 触发小节边界! cumulativeBeats=${cumulativeBeats.toFixed(2)} >= beatsPerMeasure=${beatsPerMeasure}`,
-          );
-          // 标注的是 idx+1（下一音），因为 idx 是当前小节的最后一个音
-          const nextIdx = idx + 1;
-          if (nextIdx < project.notes.length && !project.notes[nextIdx].ban) {
-            project.notes[nextIdx].ban = 1;
-            totalMarked++;
-            console.log(
-              `[AutoBan] all模式 idx=${idx} 标注ban=1 at nextIdx=${nextIdx} note.value=${project.notes[nextIdx].value}`,
-            );
-          } else if (nextIdx < project.notes.length) {
-            console.log(
-              `[AutoBan] all模式 idx=${idx} nextIdx=${nextIdx} 已有ban，跳过`,
-            );
-          }
-          measureStartIdx = nextIdx + 1; // 下一小节的起始位置是 nextIdx+1
-          cumulativeBeats = cumulativeBeats % beatsPerMeasure;
-          console.log(
-            `[AutoBan] all模式 idx=${idx} 更新 measureStartIdx=${measureStartIdx} remainder cumulativeBeats=${cumulativeBeats.toFixed(2)}`,
-          );
-        }
-      }
-    });
-    console.log(`[AutoBan] all模式完成，共标注 ${totalMarked} 个小节`);
-    setStatus(`自动标注板完成，共标注 ${totalMarked} 个小节起始音`);
+    projects = state.allProjects;
   } else if (state.project) {
-    // Apply to single row
-    let cumulativeBeats = 0;
-    let measureStartIdx = 0;
-    let totalMarked = 0;
-
-    console.log(
-      `[AutoBan] 单行模式开始，notes.length=${state.project.notes.length}`,
-    );
-
-    // 先把第一个音标注为 ban
-    if (state.project.notes.length > 0 && !state.project.notes[0].ban) {
-      state.project.notes[0].ban = 1;
-      totalMarked++;
-      console.log(`[AutoBan] 单行模式 第一音 idx=0 标注ban=1`);
-    }
-
-    for (let idx = 0; idx < state.project.notes.length; idx++) {
-      const note = state.project.notes[idx];
-
-      const { beats, isN } = renderer.getNoteInfo(note);
-      console.log(
-        `[AutoBan] 单行模式 idx=${idx} note.value=${note.value} beats=${beats} isN=${isN} cumulativeBeats=${cumulativeBeats.toFixed(2)}`,
-        { note },
-      );
-
-      cumulativeBeats += beats;
-
-      // Check if we completed a measure
-      if (cumulativeBeats >= beatsPerMeasure && idx > 0) {
-        console.log(
-          `[AutoBan] 单行模式 idx=${idx} 触发小节边界! cumulativeBeats=${cumulativeBeats.toFixed(2)} >= beatsPerMeasure=${beatsPerMeasure}`,
-        );
-        // 标注的是 idx+1（下一音），因为 idx 是当前小节的最后一个音
-        const nextIdx = idx + 1;
-        if (
-          nextIdx < state.project.notes.length &&
-          !state.project.notes[nextIdx].ban
-        ) {
-          state.project.notes[nextIdx].ban = 1;
-          totalMarked++;
-          console.log(
-            `[AutoBan] 单行模式 idx=${idx} 标注ban=1 at nextIdx=${nextIdx} note.value=${state.project.notes[nextIdx].value}`,
-          );
-        } else if (nextIdx < state.project.notes.length) {
-          console.log(
-            `[AutoBan] 单行模式 idx=${idx} nextIdx=${nextIdx} 已有ban，跳过`,
-          );
-        }
-        measureStartIdx = nextIdx + 1; // 下一小节的起始位置是 nextIdx+1
-        cumulativeBeats = cumulativeBeats % beatsPerMeasure;
-        console.log(
-          `[AutoBan] 单行模式 idx=${idx} 更新 measureStartIdx=${measureStartIdx} remainder cumulativeBeats=${cumulativeBeats.toFixed(2)}`,
-        );
-      }
-    }
-    setStatus(`自动标注板完成，共标注 ${totalMarked} 个小节起始音`);
-    console.log(`[AutoBan] 单行模式完成，共标注 ${totalMarked} 个小节`);
+    projects = [state.project];
   } else {
     setStatus("请先加载简谱数据");
     return;
   }
 
+  let totalMarked = 0;
+
+  // 遍历每一行
+  projects.forEach((proj) => {
+    const notes = proj.notes;
+    if (!notes || notes.length === 0) return;
+
+    // ======================
+    // 1. 清空所有旧板
+    // ======================
+    notes.forEach((n) => (n.ban = 0));
+
+    // ======================
+    // 2. 第一个音一定是板
+    // ======================
+    notes[0].ban = 1;
+    totalMarked++;
+
+    // ======================
+    // 3. 正确累加节拍（最稳算法）
+    // ======================
+    let currentBeat = 0;
+
+    for (let i = 0; i < notes.length; i++) {
+      const note = notes[i];
+      const { beats, isN } = renderer.getNoteInfo(note);
+
+
+      // ======================
+      // 关键：加入后是否超过小节 → 下一个音打板
+      // ======================
+      if (currentBeat + beats > beatsPerMeasure) {
+        const nextIndex = i + 1;
+        if (nextIndex < notes.length) {
+          notes[nextIndex].ban = 1;
+          totalMarked++;
+        }
+        // 带入剩余时值（最关键，不乱）
+        currentBeat = currentBeat + beats - beatsPerMeasure;
+      }
+      // ======================
+      // 刚好填满小节 → 下一个音打板
+      // ======================
+      else if (currentBeat + beats === beatsPerMeasure) {
+        const nextIndex = i + 1;
+        if (nextIndex < notes.length) {
+          notes[nextIndex].ban = 1;
+          totalMarked++;
+        }
+        currentBeat = 0;
+      }
+      // ======================
+      // 没满 → 继续累加
+      // ======================
+      else {
+        currentBeat += beats;
+      }
+    }
+  });
+
+  setStatus(`自动板完成｜共标注 ${totalMarked} 个小节起始音`);
   redrawCanvas();
 }
-
 // Single-row canvas click handler
 function onSingleCanvasClick(e) {
   if (!state.project || state.viewMode === "all") return;
