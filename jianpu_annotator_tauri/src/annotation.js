@@ -130,13 +130,13 @@ function parseNoteValue(value) {
       continue;
     }
     // Handle modifiers - can appear before OR after the note digit
-    if (char === "8" && !note) {
+    if (char === "8" && !note) { //高八度音符
       isHighOctave = true;
       prefix += char;
     } else if (char === "9" && !note) {
       isHighDoubleOctave = true;
       prefix += char;
-    } else if (char === "*") {
+    } else if (char === "*") {  //低八度音符
       isLowOctave = true;
       prefix += char;
     } else if (char === "v") {
@@ -147,22 +147,26 @@ function parseNoteValue(value) {
       beatLines = 2;
       isLowOctave = true;
       prefix += char;
-    } else if (char === ".") {
+    } else if (char === "n") {
       beatLines = 3;
-      isLowDoubleOctave = true;
+      isLowOctave = true;
       prefix += char;
-    } else if (char === ",") {
-      beatLines = 2;
+    } else if (char === "(") {  //低两个八度音符
       isLowDoubleOctave = true;
       prefix += char;
     } else if (char === "m") {
       beatLines = 1;
       isLowDoubleOctave = true;
       prefix += char;
-    } else if (char === "(") {
+    } else if (char === ",") {
+      beatLines = 2;
       isLowDoubleOctave = true;
       prefix += char;
-    } else if (char === "z") {
+    } else if (char === ".") {
+      beatLines = 3;
+      isLowDoubleOctave = true;
+      prefix += char;
+    } else if (char === "z") {  // 音符
       beatLines = 1;
       prefix += char;
     } else if (char === "x") {

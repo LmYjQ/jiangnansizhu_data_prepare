@@ -67,7 +67,11 @@ class JianpuRenderer {
       parsed.prefix.includes("b")
     )
       beats = 0.25;
-    else if (parsed.prefix.includes("c") || parsed.prefix.includes("."))
+    else if (
+      parsed.prefix.includes("c") ||
+      parsed.prefix.includes(".") ||
+      parsed.prefix.includes("n")
+    )
       beats = 0.125;
     if (parsed.suffix === ":") beats = 2;
     if (parsed.isN) {
