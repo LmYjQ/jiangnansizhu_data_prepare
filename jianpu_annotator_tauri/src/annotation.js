@@ -111,6 +111,8 @@ function parseNoteValue(value) {
   let note = "";
   let isHighOctave = false;
   let isLowOctave = false;
+  let isHighDoubleOctave = false;
+  let isLowDoubleOctave = false;
   let beatLines = 0;
   let isN = false; // 附点修饰
 
@@ -129,12 +131,36 @@ function parseNoteValue(value) {
     }
     // Handle modifiers - can appear before OR after the note digit
     if (char === "8" && !note) {
-      // Only '8' before note means high octave
       isHighOctave = true;
       prefix += char;
-    } else if ((char === "b" || char === "v") && !note) {
-      // Only 'b' before note means low octave
+    } else if (char === "9" && !note) {
+      isHighDoubleOctave = true;
+      prefix += char;
+    } else if (char === "*") {
       isLowOctave = true;
+      prefix += char;
+    } else if (char === "v") {
+      beatLines = 1;
+      isLowOctave = true;
+      prefix += char;
+    } else if (char === "b") {
+      beatLines = 2;
+      isLowOctave = true;
+      prefix += char;
+    } else if (char === ".") {
+      beatLines = 3;
+      isLowDoubleOctave = true;
+      prefix += char;
+    } else if (char === ",") {
+      beatLines = 2;
+      isLowDoubleOctave = true;
+      prefix += char;
+    } else if (char === "m") {
+      beatLines = 1;
+      isLowDoubleOctave = true;
+      prefix += char;
+    } else if (char === "(") {
+      isLowDoubleOctave = true;
       prefix += char;
     } else if (char === "z") {
       beatLines = 1;
@@ -161,6 +187,8 @@ function parseNoteValue(value) {
     suffix,
     isHighOctave,
     isLowOctave,
+    isLowDoubleOctave, // 新增：低两个八度
+    isHighDoubleOctave, // 新增：高两个八度
     beatLines,
     isN,
   };

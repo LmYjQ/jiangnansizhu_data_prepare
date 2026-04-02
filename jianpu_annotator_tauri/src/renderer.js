@@ -32,7 +32,6 @@ class JianpuRenderer {
     this.zoomScale = 1.0;
     this.noteXPositions = [];
     this.noteWidths = [];
-    this._lastBeatLines = 0; // ✅ 1. 加这里
   }
 
   resize(noteCount, rowCount = 1) {
@@ -56,14 +55,25 @@ class JianpuRenderer {
 
     let beats = 1;
 
-    if (parsed.prefix.includes("z")) beats = 0.5;
-    else if (parsed.prefix.includes("x")) beats = 0.25;
-    else if (parsed.prefix.includes("c")) beats = 0.125;
+    if (
+      parsed.prefix.includes("z") ||
+      parsed.prefix.includes("m") ||
+      parsed.prefix.includes("v")
+    )
+      beats = 0.5;
+    else if (
+      parsed.prefix.includes("x") ||
+      parsed.prefix.includes(",") ||
+      parsed.prefix.includes("b")
+    )
+      beats = 0.25;
+    else if (parsed.prefix.includes("c") || parsed.prefix.includes("."))
+      beats = 0.125;
     if (parsed.suffix === ":") beats = 2;
     if (parsed.isN) {
       beats = beats * 1.5;
     }
-    return { beats, isN: parsed.isN, isB: parsed.isLowOctave };
+    return { beats, isN: parsed.isN };
   }
 
   draw(notes, selectedIdx, scrollX) {
@@ -86,28 +96,14 @@ class JianpuRenderer {
       this.noteWidths = [];
 
       let cumulativeBeats = 0;
-      let lastValidBeatValue = 0;
       let currentX = 0;
       let lastBeatFloor = -1;
 
       for (let idx = 0; idx < notes.length; idx++) {
         const note = notes[idx];
         const parsed = parseNoteValue(note.value);
-
-        if (!parsed.isLowOctave) {
-          this._lastBeatLines = parsed.beatLines;
-        }
-
         const noteInfo = this.getNoteInfo(note);
         let beatValue = noteInfo.beats;
-
-        if (noteInfo.isB) {
-          if (lastValidBeatValue !== 0) {
-            beatValue = lastValidBeatValue;
-          }
-        } else {
-          lastValidBeatValue = beatValue;
-        }
 
         const info = {
           note: note,
@@ -122,7 +118,8 @@ class JianpuRenderer {
           currentX += scaledBeatGap;
           lastBeatFloor = currentBeatFloor;
         }
-        const width = parsed.suffix === ":" ? scaledCellWidth * 2 : scaledCellWidth;
+        const width =
+          parsed.suffix === ":" ? scaledCellWidth * 2 : scaledCellWidth;
         this.noteWidths.push(width);
         this.noteXPositions.push(currentX);
         currentX += width;
@@ -149,7 +146,11 @@ class JianpuRenderer {
             const ratio = (measureBeats - sumBeats) / info.beatValue;
             const mx =
               this.noteXPositions[idx] + ratio * this.noteWidths[idx] - scrollX;
-            this.drawMeasureLine(mx + scaledBeatGap / 2, rowY, scaledCellHeight);
+            this.drawMeasureLine(
+              mx + scaledBeatGap / 2,
+              rowY,
+              scaledCellHeight,
+            );
             break;
           }
           sumBeats = nextSum;
@@ -169,14 +170,9 @@ class JianpuRenderer {
 
   drawNote(note, x, rowY, width, selected) {
     const parsed = parseNoteValue(note.value);
-
-    if (parsed.isLowOctave) {
-      parsed.beatLines = this._lastBeatLines;
-    }
-
     const s = this.zoomScale;
     const scaledNoteSize = NOTE_SIZE * s;
-    const scaledDotSize = DOT_SIZE ;
+    const scaledDotSize = DOT_SIZE;
 
     const cx = x + width / 2;
     const cy = rowY + (CELL_HEIGHT * s) / 2;
@@ -191,7 +187,7 @@ class JianpuRenderer {
       );
     }
 
-    if (parsed.isHighOctave) this.drawDot(cx, cy - 18 * s, scaledDotSize* 0.7);
+    if (parsed.isHighOctave) this.drawDot(cx, cy - 18 * s, scaledDotSize * 0.7);
     this.drawNoteNumber(
       parsed.note || "?",
       cx,
@@ -199,11 +195,12 @@ class JianpuRenderer {
       this.getNoteColor(note),
       scaledNoteSize,
     );
-    if (parsed.isLowOctave) this.drawDot(cx, cy + 18 * s, scaledDotSize* 0.7);
+    if (parsed.isLowOctave) {
+      this.drawDot(cx, cy + 18 * s, scaledDotSize * 0.7);
+    }
     if (parsed.beatLines > 0)
       this.drawBeatLines(cx, cy + 25 * s, parsed.beatLines, s);
-    if (parsed.isN)
-      this.drawNDot(cx + 10, cy + 10 * s, scaledDotSize * 0.7);
+    if (parsed.isN) this.drawNDot(cx + 10, cy + 10 * s, scaledDotSize * 0.7);
     if (parsed.suffix === ":") this.drawSuffix("-", cx + 13 * s, cy, 16 * s);
   }
 
