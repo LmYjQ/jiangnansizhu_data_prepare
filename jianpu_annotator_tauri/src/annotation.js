@@ -123,7 +123,7 @@ function parseNoteValue(value) {
       note = char;
       continue;
     }
-    if (char === "N" && i + 1 < value.length && value[i + 1] === ";") {
+    if ((char === "N"|| char === "B") && i + 1 < value.length && value[i + 1] === ";") {
       isN = true; // 只有 N 后面跟着 ; 才是附点
       prefix += char + ";";
       i++; // 跳过 ; 符号
