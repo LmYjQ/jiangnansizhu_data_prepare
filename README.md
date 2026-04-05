@@ -10,4 +10,8 @@ npm run tauri dev
 ```
 npm run tauri build
 ```
-
+```
+rustup target add x86_64-apple-darwin
+npm run tauri build -- --target universal-apple-darwin
+npm run tauri build
+```
