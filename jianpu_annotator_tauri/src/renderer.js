@@ -73,7 +73,11 @@ class JianpuRenderer {
       parsed.prefix.includes("n")
     )
       beats = 0.125;
-    if (parsed.suffix === ":") beats = 2;
+    if (parsed.suffix.includes(":")) {
+      const colonCount = (parsed.suffix.match(/:/g) || []).length;
+      beats = 1 + colonCount;
+    }
+
     if (parsed.isN) {
       beats = beats * 1.5;
     }
@@ -122,8 +126,9 @@ class JianpuRenderer {
           currentX += scaledBeatGap;
           lastBeatFloor = currentBeatFloor;
         }
-        const width =
-          parsed.suffix === ":" ? scaledCellWidth * 2 : scaledCellWidth;
+        const width = parsed.suffix.includes(":")
+          ? scaledCellWidth * (parsed.suffix.match(/:/g) || []).length
+          : scaledCellWidth;
         this.noteWidths.push(width);
         this.noteXPositions.push(currentX);
         currentX += width;
@@ -193,7 +198,8 @@ class JianpuRenderer {
 
     if (parsed.isHighOctave) this.drawDot(cx, cy - 18 * s, scaledDotSize * 0.7);
     this.drawNoteNumber(
-      parsed.note || "?",
+      parsed.note,
+      // parsed.note || "?",
       cx,
       cy,
       this.getNoteColor(note),
@@ -205,7 +211,12 @@ class JianpuRenderer {
     if (parsed.beatLines > 0)
       this.drawBeatLines(cx, cy + 25 * s, parsed.beatLines, s);
     if (parsed.isN) this.drawNDot(cx + 10, cy + 10 * s, scaledDotSize * 0.7);
-    if (parsed.suffix === ":") this.drawSuffix("-", cx + 13 * s, cy, 16 * s);
+    if (parsed.suffix.includes(":")) {
+      const colonCount = (parsed.suffix.match(/:/g) || []).length;
+      for (let i = 0; i < colonCount; i++) {
+        this.drawSuffix("-", cx + 13 * s + i * 12 * s, cy, 16 * s);
+      }
+    }
   }
 
   drawDot(x, y, size) {

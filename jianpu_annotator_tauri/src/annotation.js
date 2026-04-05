@@ -123,20 +123,27 @@ function parseNoteValue(value) {
       note = char;
       continue;
     }
-    if ((char === "N"|| char === "B") && i + 1 < value.length && value[i + 1] === ";") {
+    if (
+      (char === "N" || char === "B") &&
+      i + 1 < value.length &&
+      value[i + 1] === ";"
+    ) {
       isN = true; // 只有 N 后面跟着 ; 才是附点
       prefix += char + ";";
       i++; // 跳过 ; 符号
       continue;
     }
+
     // Handle modifiers - can appear before OR after the note digit
-    if (char === "8" && !note) { //高八度音符
+    if (char === "8" && !note) {
+      //高八度音符
       isHighOctave = true;
       prefix += char;
     } else if (char === "9" && !note) {
       isHighDoubleOctave = true;
       prefix += char;
-    } else if (char === "*") {  //低八度音符
+    } else if (char === "*") {
+      //低八度音符
       isLowOctave = true;
       prefix += char;
     } else if (char === "v") {
@@ -151,7 +158,8 @@ function parseNoteValue(value) {
       beatLines = 3;
       isLowOctave = true;
       prefix += char;
-    } else if (char === "(") {  //低两个八度音符
+    } else if (char === "(") {
+      //低两个八度音符
       isLowDoubleOctave = true;
       prefix += char;
     } else if (char === "m") {
@@ -166,7 +174,8 @@ function parseNoteValue(value) {
       beatLines = 3;
       isLowDoubleOctave = true;
       prefix += char;
-    } else if (char === "z") {  // 音符
+    } else if (char === "z") {
+      // 音符
       beatLines = 1;
       prefix += char;
     } else if (char === "x") {
@@ -178,11 +187,6 @@ function parseNoteValue(value) {
     } else if (char === ":") {
       suffix += char;
     }
-
-    // else if (char === "!") {
-    //   // 装饰音忽略
-    //   break;
-    // }
   }
 
   return {
@@ -225,6 +229,9 @@ function cleanNoteValue(note) {
   note = note.replace(/\\u00C0.*?\\u00C1/g, "");
   // 移除 \u0448...\u0449 指法技法符号
   note = note.replace(/\\u0448.*?\\u0449/g, "");
+  // 移除 \u03A4 符号
+  note = note.replace(/\\u03A4/g, ""); // 👈 加这一行
+
   // 移除装饰音 !...@
   note = note.replace(/![^@]*@/g, "");
   return note.trim();
