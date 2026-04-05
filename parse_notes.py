@@ -68,7 +68,7 @@ def tokenize(data: str, debug: bool = False) -> list[Token]:
             continue
 
         # 4. 多字符后缀修饰符：N; NL!A@ 等
-        SUFFIX_MOD_LIST = ['N;', 'NL!A@', 'NLA']
+        SUFFIX_MOD_LIST = ['N;', 'NL!A@', 'NLA','B;','\\u03A4']
         suffix_matched = False
         for suffix in SUFFIX_MOD_LIST:
             if data[i:].startswith(suffix):
@@ -104,14 +104,14 @@ def tokenize(data: str, debug: bool = False) -> list[Token]:
             continue
 
         # 7. 前缀修饰符：8(高八度) b(低八度) z(八分) x(十六分) c(三十二分)
-        if char in '8bxzcZXV':
+        if char in '8bvxzcnZXVA':
             branch = 'PREFIX_MOD'
             tokens.append(Token(TokenType.PREFIX_MOD, char))
             i += 1
             continue
 
         # 8. 后缀修饰符 ：(两拍) N(延长)（必须先判断，避免冒号被误判为前缀修饰符）
-        if char in ':':
+        if char in ':S':
             branch = 'SUFFIX_MOD'
             tokens.append(Token(TokenType.SUFFIX_MOD, char))
             i += 1
@@ -208,28 +208,33 @@ def parse_note(data: str) -> list[str]:
 
 if __name__ == '__main__':
     import sys
+    import pandas as pd
 
-    input_file = './qmx_output/mem.csv'
-    output_file = './qmx_output/parsed_notes.csv'
+    # 支持命令行参数：python parse_notes.py <input_file> [debug_row]
+    # input_file: 输入CSV文件名（必选）
+    # debug_row: CSV文件中的行号（从1开始，含表头）（可选）
+    if len(sys.argv) < 2:
+        print('用法: python parse_notes.py <input_file> [debug_row]')
+        sys.exit(1)
 
-    # 支持命令行参数：python parse_notes.py [debug_row]
-    # debug_row: CSV文件中的行号（从1开始，含表头）
+    input_file = sys.argv[1]
+    output_file = input_file.replace('mem','parsed_notes')
+
     debug_row = None
-    if len(sys.argv) > 1:
-        debug_row = int(sys.argv[1])
+    if len(sys.argv) > 2:
+        debug_row = int(sys.argv[2])
 
     all_unknown_chars = {}  # {字符: [行号列表]}
 
-    with open(input_file, 'r', encoding='utf-16-le') as f_in:
-        reader = csv.reader(f_in)
-        rows = list(reader)
+    # 读取CSV并按p, y列排序
+    df = pd.read_csv(input_file, encoding='utf-16-le')
+    df = df.sort_values(by=['p', 'y'])
 
     # 处理所有行，收集结果
     output_rows = []
-    for idx, row in enumerate(rows):
-        if len(row) > 9 and row[7] == 'QMMFont':
-            datap = row[9]
-            csv_row_num = idx + 1  # CSV行号（从1开始）
+    for csv_row_num, (_, row) in enumerate(df.iterrows(), start=1):
+        if len(row) > 9 and row.iloc[7] == 'QMMFont':
+            datap = row.iloc[9]
 
             # 单独调试某一行
             if debug_row is not None:
@@ -261,9 +266,6 @@ if __name__ == '__main__':
 
             # 音符用 | 分隔
             output_rows.append([datap, '|'.join(notes)])
-        else:
-            # 其他行不需要处理，跳过
-            pass
 
     # 写入结果
     with open(output_file, 'w', encoding='utf-8', newline='') as f_out:
