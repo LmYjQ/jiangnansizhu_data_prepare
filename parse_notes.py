@@ -1,6 +1,7 @@
 import csv
 from dataclasses import dataclass
 from enum import Enum, auto
+import token
 
 # ============================================================
 # 第一层：Token 定义
@@ -104,7 +105,7 @@ def tokenize(data: str, debug: bool = False) -> list[Token]:
             continue
 
         # 7. 前缀修饰符：8(高八度) b(低八度) z(八分) x(十六分) c(三十二分)
-        if char in '8bvxzcnZXVA':
+        if char in '8bvxzcnZXVA*':
             branch = 'PREFIX_MOD'
             tokens.append(Token(TokenType.PREFIX_MOD, char))
             i += 1
@@ -152,8 +153,8 @@ def check_unknown_chars(data: str) -> list[str]:
 # 时值前缀修饰符 -> 时值倍数（四分音符=1）
 DURATION_PREFIX = {
     'z': 0.5, 'v': 0.5,   # 八分音符
-    'c': 0.25, 'b': 0.25, 'x': 0.25,  # 十六分音符
-    'n': 0.125, ',': 0.125, '.': 0.125,  # 三十二分音符
+    'b': 0.25, 'x': 0.25,  # 十六分音符
+    'c': 0.125, 'n': 0.125, ',': 0.125, '.': 0.125,  # 三十二分音符
     'm': 0.5,             # 八分音符低两个八度
     '*': 1, '(': 1,       # 四分音符 / 四分音符低两个八度
 }
@@ -166,105 +167,53 @@ DURATION_SUFFIX = {
 }
 
 
-def strip_ornament(value: str) -> str:
-    """去除装饰音块 !...@"""
-    result = ''
-    i = 0
-    while i < len(value):
-        if value[i] == '!':
-            end = value.find('@', i + 1)
-            if end != -1:
-                i = end + 1
-                continue
-        result += value[i]
-        i += 1
-    return result
-
-
-def strip_tech_suffix(value: str, debug: bool = False) -> str:
-    """去除特殊技法后缀 ш...щ"""
-    TECH_SUFFIX_START = '\\u0448'
-    TECH_SUFFIX_END = '\\u0449'
-    print(f'  [strip_tech_suffix] INPUT={repr(value)}, looking for start={repr(TECH_SUFFIX_START)}, end={repr(TECH_SUFFIX_END)}') if debug else None
-    while True:
-        start = value.find(TECH_SUFFIX_START)
-        if start == -1:
-            print(f'  [strip_tech_suffix] start not found, returning {repr(value)}') if debug else None
-            break
-        end = value.find(TECH_SUFFIX_END, start + 1)
-        if end == -1:
-            print(f'  [strip_tech_suffix] end not found, returning {repr(value)}') if debug else None
-            break
-        value = value[:start]
-        print(f'  [strip_tech_suffix] stripped, now={repr(value)}') if debug else None
-    return value
-
-
-def compute_duration(note_value: str, debug: bool = False) -> float:
-    """根据note的value字符串计算时值（四分音符=1）"""
-    if note_value == 'bar':
+def compute_duration(token_dict: dict, debug: bool = False) -> float:
+    """根据 token_dict 计算时值（四分音符=1）"""
+    main_value = token_dict.get("main_value")
+    if not main_value:
         return 0
 
-    # 去除装饰音块和特殊技法后缀
-    value = strip_tech_suffix(strip_ornament(note_value), debug=debug)
+    # 获取前缀时值倍数
+    prefix_dur = 1.0
+    for key in token_dict:
+        if key in DURATION_PREFIX:
+            prefix_dur = DURATION_PREFIX[key]
+            break
 
-    if debug:
-        print(f'  [compute_duration] input={repr(note_value)} -> value={repr(value)}')
+    # 处理附点音符（B; 和 N;）：附点 = 本色 + 半拍
+    if "B;" in token_dict or "N;" in token_dict:
+        # print(f'  [compute_duration] main={main_value}, dur={prefix_dur*1.5}, 附点=本色+半拍') if debug else None
+        return prefix_dur * 1.5
 
-    # 处理附点音符：B; 是加半拍，不是乘
-    if value.endswith('B;'):
-        base = value[:-2]
-        prefix = base.rstrip('0123456787')
-        base_dur = 1.0
-        for c in prefix:
-            if c in DURATION_PREFIX:
-                base_dur = DURATION_PREFIX[c]
-                break
-        return base_dur + base_dur * 0.5  # 附点 = 本色 + 半拍
-
-    if value.endswith('N;'):
-        base = value[:-2]
-        prefix = base.rstrip('0123456787')
-        base_dur = 1.0
-        for c in prefix:
-            if c in DURATION_PREFIX:
-                base_dur = DURATION_PREFIX[c]
-                break
-        return base_dur + base_dur * 0.5  # 附点 = 本色 + 半拍
-
-    # 检查后缀（二分音符等）
+    # 处理后缀（二分音符等）
     for suffix, dur in DURATION_SUFFIX.items():
-        if value.endswith(suffix):
-            base = value[:-len(suffix)]
-            prefix = base.rstrip('0123456787')
-            prefix_dur = 1.0
-            for c in prefix:
-                if c in DURATION_PREFIX:
-                    prefix_dur = DURATION_PREFIX[c]
-                    break
+        if suffix in token_dict:
             return dur * prefix_dur
 
-    # 无特殊后缀，main是最后一个数字字符，prefix是main前面的一个字符
-    main = ''
-    prefix = ''
-    for i in range(len(value) - 1, -1, -1):
-        if value[i] in '01234567':
-            main = value[i]
-            prefix = value[i - 1] if i > 0 else ''
-            break
-    print(f'  [compute_duration] value={repr(value)}, prefix={repr(prefix)}, main={repr(main)}') if debug else None
-    if not main:
-        return 0
-
-    prefix_dur = DURATION_PREFIX.get(prefix, 1.0) if prefix else 1.0
+    # if debug:
+        # print(f'  [compute_duration] main={main_value}, prefix_dur={prefix_dur}')
 
     return prefix_dur
+
+
+def build_token_dict(tokens: list[Token]) -> dict:
+    """根据 token 列表生成 token dict：主音 key 为 main_value，其他 token value 为 1"""
+    result = {}
+    main_value = None
+    for t in tokens:
+        if t.type == TokenType.NOTE:
+            main_value = t.value
+        else:
+            result[t.value] = 1
+    if main_value is not None:
+        result["main_value"] = main_value
+    return result
 
 
 def parse_tokens(tokens: list[Token]) -> list[dict]:
     """
     把 token 列表按主音切分成音符列表。
-    返回结构化列表：[{id, value, duration, ban, yan, gu_gan}, ...]
+    返回结构化列表：[{id, value, duration, ban, yan, gu_gan, token_dict}, ...]
     规则：
     - 装饰音/特殊技法/前缀修饰符(8/b/x/z) → pending_prefix
     - 主音 → current_note
@@ -275,20 +224,25 @@ def parse_tokens(tokens: list[Token]) -> list[dict]:
     note_id = 0
     current_note = ""        # 当前主音
     pending_prefix = ""      # 前缀（装饰音/特殊技法/前缀修饰符）
+    current_tokens = []     # 当前音符的 token 列表
 
     def save_note():
         nonlocal note_id
         if current_note or pending_prefix:
             note_value = pending_prefix + current_note
-            dur = compute_duration(note_value, debug=True)
+            # 先构建 token dict
+            token_dict = build_token_dict(current_tokens)
+            dur = compute_duration(token_dict, debug=True)
             notes.append({
                 "id": note_id,
                 "value": note_value,
                 "duration": dur,
                 "ban": 0,
                 "yan": 0,
-                "gu_gan": 0
+                "gu_gan": 0,
+                "token_dict": token_dict
             })
+            print(f'save_note:  note_value={note_value}, duration={dur}, token_dict={token_dict}')
             note_id += 1
 
     def save_bar():
@@ -299,33 +253,51 @@ def parse_tokens(tokens: list[Token]) -> list[dict]:
             "duration": 0,
             "ban": 0,
             "yan": 0,
-            "gu_gan": 0
+            "gu_gan": 0,
+            "token_dict": {}
         })
         note_id += 1
 
     for token in tokens:
+        print(f'Processing token: {token}')  #
         # 没有主音时，前缀修饰符和装饰音都累积到 pending_prefix
         if current_note == "":
+            print(111)
             if token.type in {TokenType.PREFIX_MOD, TokenType.ORNAMENT, TokenType.TECH}:
                 pending_prefix += token.value
+                current_tokens.append(token)
             elif token.type == TokenType.NOTE:
                 current_note = token.value
+                current_tokens.append(token)
             elif token.type == TokenType.SEPARATOR:
                 save_bar()
         # 当前有主音时，处理规则如下：
         else:
+            print(222)
             if token.type in {TokenType.SUFFIX_MOD, TokenType.TECH_SUFFIX}:
                 current_note += token.value
+                current_tokens.append(token)
             elif token.type == TokenType.SEPARATOR:
                 save_note()
                 pending_prefix = ""
                 current_note = ""
+                current_tokens = []
                 save_bar()
             else:
+                print(333)
                 # 遇到了新的主音或前缀修饰符/装饰音/特殊技法 → 先保存当前音符，再处理新 token
                 save_note()
-                pending_prefix = token.value  # 重置前缀
-                current_note = ""  # 重置当前音符
+                current_note = ""
+                if token.type in {TokenType.PREFIX_MOD, TokenType.ORNAMENT, TokenType.TECH}:
+                    pending_prefix = token.value
+                    current_tokens = [token]
+                elif token.type == TokenType.NOTE:
+                    pending_prefix = ""
+                    current_note = token.value
+                    current_tokens = [token]
+                else:
+                    pending_prefix = ""
+                    current_tokens = []
 
     # 处理最后未保存的音符
     if current_note or pending_prefix:
@@ -371,7 +343,7 @@ if __name__ == '__main__':
     all_unknown_chars = {}  # {字符: [行号列表]}
 
     # 读取CSV并按p, y列排序
-    df = pd.read_csv(input_file, encoding='utf-8')
+    df = pd.read_csv(input_file, encoding='utf-16-le')
     print(df.columns)
     df = df.sort_values(by=['p', 'y'])
 
@@ -397,9 +369,9 @@ if __name__ == '__main__':
                     print(f'  {t.type.name}: {repr(t.value)}')
                 print()
                 notes = parse_tokens(tokens)
-                print(f'解析结果: {notes}')
+                # print(f'解析结果: {notes}')
                 sys.exit(0)
-
+            print(f'=== 处理第 {csv_row_num} 行 ===')
             tokens = tokenize(datap)
             notes = parse_tokens(tokens)
 
