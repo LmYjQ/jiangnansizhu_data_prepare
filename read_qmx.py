@@ -146,7 +146,7 @@ def sanitize_unicode_for_csv(value):
     return value
 
 
-def export_to_csv(data, output_dir):
+def export_to_csv(data, output_dir, base_name):
     """将数据导出为CSV文件"""
     if not data:
         print("没有数据可导出")
@@ -159,7 +159,7 @@ def export_to_csv(data, output_dir):
         df = df.applymap(sanitize_unicode_for_csv)
 
         safe_name = "".join(c if c.isalnum() or c in ('_', '-') else '_' for c in table_name)
-        csv_path = os.path.join(output_dir, f"{safe_name}.csv")
+        csv_path = os.path.join(output_dir, f"{base_name}_{safe_name}.csv")
         df.to_csv(csv_path, index=False, encoding='utf-16-le')
         print(f"已导出: {csv_path}")
 
@@ -182,6 +182,7 @@ if __name__ == '__main__':
         # 询问是否导出为CSV
         export = input("\n是否导出为CSV文件? (y/n): ").strip().lower()
         if export == 'y':
+            base_name = os.path.splitext(os.path.basename(qmx_path))[0]
             output_dir = os.path.join(os.path.dirname(qmx_path), 'qmx_output')
-            export_to_csv(data, output_dir)
+            export_to_csv(data, output_dir, base_name)
             print(f"\n已导出到: {output_dir}")

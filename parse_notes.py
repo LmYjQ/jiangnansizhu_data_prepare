@@ -69,7 +69,7 @@ def tokenize(data: str, debug: bool = False) -> list[Token]:
             continue
 
         # 4. 多字符后缀修饰符：N; NL!A@ 等
-        SUFFIX_MOD_LIST = ['N;', 'NL!A@', 'NLA','B;','\\u03A4','NLS']
+        SUFFIX_MOD_LIST = ['N;', 'NL!A@', 'NLA','B;','\\u03A4','NLS','M;']
         suffix_matched = False
         for suffix in SUFFIX_MOD_LIST:
             if data[i:].startswith(suffix):
@@ -105,7 +105,7 @@ def tokenize(data: str, debug: bool = False) -> list[Token]:
             continue
 
         # 7. 前缀修饰符：8(高八度) b(低八度) z(八分) x(十六分) c(三十二分)
-        if char in '8bvxzcnZXVA*':
+        if char in '8bvxzcnZXVA*,.m':
             branch = 'PREFIX_MOD'
             tokens.append(Token(TokenType.PREFIX_MOD, char))
             i += 1
@@ -164,6 +164,7 @@ DURATION_SUFFIX = {
     ':': 2,     # 二分音符
     'B;': 0.75,  # 附点八分 = 0.5 + 0.25
     'N;': 0.375, # 附点十六分 = 0.25 + 0.125
+    'M;': 0.375,   # 附点十六分 = 0.25 + 0.125
 }
 
 
@@ -210,7 +211,7 @@ def build_token_dict(tokens: list[Token]) -> dict:
     return result
 
 
-def parse_tokens(tokens: list[Token]) -> list[dict]:
+def parse_tokens(tokens: list[Token], save_bar: bool = False) -> list[dict]:
     """
     把 token 列表按主音切分成音符列表。
     返回结构化列表：[{id, value, duration, ban, yan, gu_gan, token_dict}, ...]
@@ -218,7 +219,7 @@ def parse_tokens(tokens: list[Token]) -> list[dict]:
     - 装饰音/特殊技法/前缀修饰符(8/b/x/z) → pending_prefix
     - 主音 → current_note
     - 后缀修饰符(:) 和后缀特殊技法(ш...щ) → current_note 后缀
-    - / 分隔符 → 作为单独元素，value='bar'
+    - / 分隔符 → 作为单独元素，value='bar'（仅在 save_bar=True 时保留）
     """
     notes = []
     note_id = 0
@@ -262,7 +263,6 @@ def parse_tokens(tokens: list[Token]) -> list[dict]:
         print(f'Processing token: {token}')  #
         # 没有主音时，前缀修饰符和装饰音都累积到 pending_prefix
         if current_note == "":
-            print(111)
             if token.type in {TokenType.PREFIX_MOD, TokenType.ORNAMENT, TokenType.TECH}:
                 pending_prefix += token.value
                 current_tokens.append(token)
@@ -270,10 +270,10 @@ def parse_tokens(tokens: list[Token]) -> list[dict]:
                 current_note = token.value
                 current_tokens.append(token)
             elif token.type == TokenType.SEPARATOR:
-                save_bar()
+                if save_bar:
+                    save_bar()
         # 当前有主音时，处理规则如下：
         else:
-            print(222)
             if token.type in {TokenType.SUFFIX_MOD, TokenType.TECH_SUFFIX}:
                 current_note += token.value
                 current_tokens.append(token)
@@ -282,9 +282,9 @@ def parse_tokens(tokens: list[Token]) -> list[dict]:
                 pending_prefix = ""
                 current_note = ""
                 current_tokens = []
-                save_bar()
+                if save_bar:
+                    save_bar()
             else:
-                print(333)
                 # 遇到了新的主音或前缀修饰符/装饰音/特殊技法 → 先保存当前音符，再处理新 token
                 save_note()
                 current_note = ""
@@ -310,10 +310,10 @@ def parse_tokens(tokens: list[Token]) -> list[dict]:
 # 第四层：入口函数
 # ============================================================
 
-def parse_note(data: str) -> list[dict]:
+def parse_note(data: str, save_bar: bool = False) -> list[dict]:
     """解析简谱字符串，返回音符列表"""
     tokens = tokenize(data)
-    return parse_tokens(tokens)
+    return parse_tokens(tokens, save_bar=save_bar)
 
 
 # ============================================================
@@ -324,26 +324,24 @@ if __name__ == '__main__':
     import sys
     import json
     import pandas as pd
+    import argparse
 
-    # 支持命令行参数：python parse_notes.py <input_file> [debug_row]
-    # input_file: 输入CSV文件名（必选）
-    # debug_row: CSV文件中的行号（从1开始，含表头）（可选）
-    if len(sys.argv) < 2:
-        print('用法: python parse_notes.py <input_file> [debug_row]')
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description='解析简谱CSV文件')
+    parser.add_argument('-i', '--input_file', required=True, help='输入CSV文件名')
+    parser.add_argument('--encoding', default='utf-16-le', help='CSV文件编码 (默认: utf-16-le)')
+    parser.add_argument('debug_row', nargs='?', type=int, help='CSV文件中的行号（从1开始，含表头）（可选）')
+    args = parser.parse_args()
 
-    input_file = sys.argv[1]
+    input_file = args.input_file
+    encoding = args.encoding
+    debug_row = args.debug_row
     output_csv = input_file.replace('.csv', '_parsed_notes.csv')
     output_json = input_file.replace('.csv', '_parsed_notes.json')
-
-    debug_row = None
-    if len(sys.argv) > 2:
-        debug_row = int(sys.argv[2])
 
     all_unknown_chars = {}  # {字符: [行号列表]}
 
     # 读取CSV并按p, y列排序
-    df = pd.read_csv(input_file, encoding='utf-16-le')
+    df = pd.read_csv(input_file, encoding=encoding)
     print(df.columns)
     df = df.sort_values(by=['p', 'y'])
 
@@ -353,7 +351,9 @@ if __name__ == '__main__':
     for csv_row_num, (_, row) in enumerate(df.iterrows(), start=1):
         if len(row) > 9 and row.iloc[7] == 'QMMFont':
             datap = row.iloc[9]
-
+            if len(datap) <=10:
+                print(f'行 {csv_row_num} 数据过短，跳过: {repr(datap)}')
+                continue
             # 单独调试某一行
             if debug_row is not None:
                 if csv_row_num != debug_row:
