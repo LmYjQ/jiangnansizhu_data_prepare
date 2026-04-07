@@ -124,7 +124,7 @@ function parseNoteValue(value) {
       continue;
     }
     if (
-      (char === "N" || char === "B") &&
+      (char === "N" || char === "B"|| char === "M") &&
       i + 1 < value.length &&
       value[i + 1] === ";"
     ) {
@@ -264,7 +264,7 @@ function loadParsedNotesCsv(csvContent) {
 
     // Simple CSV parsing - find the last non-empty field
     let source = null;
-    const fields = row.split(",");
+    const fields = row.split("\t");
     for (let i = fields.length - 1; i >= 0; i--) {
       const field = fields[i].trim();
       if (field) {

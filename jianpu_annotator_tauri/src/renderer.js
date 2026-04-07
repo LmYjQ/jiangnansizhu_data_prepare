@@ -205,7 +205,12 @@ class JianpuRenderer {
       this.getNoteColor(note),
       scaledNoteSize,
     );
-    if (parsed.isLowOctave) {
+    if (parsed.isLowDoubleOctave) {
+      // 倍低音 = 下面两个竖排点
+      this.drawDot(cx, cy + 14 * s, scaledDotSize * 0.7); // 上点
+      this.drawDot(cx, cy + 22 * s, scaledDotSize * 0.7); // 下点
+    } else if (parsed.isLowOctave) {
+      // 普通低音 = 一个点
       this.drawDot(cx, cy + 18 * s, scaledDotSize * 0.7);
     }
     if (parsed.beatLines > 0)
