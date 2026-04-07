@@ -394,7 +394,7 @@ if __name__ == '__main__':
 
     # 写入CSV结果
     with open(output_csv, 'w', encoding='utf-8', newline='') as f_out:
-        writer = csv.writer(f_out)
+        writer = csv.writer(f_out,delimiter='\t')
         writer.writerows(output_rows)
 
     # 写入JSON结果
