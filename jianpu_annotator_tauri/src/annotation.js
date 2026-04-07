@@ -5,12 +5,13 @@
 
 // NoteAnnotation class
 class NoteAnnotation {
-  constructor(noteId, value, ban = 0, yan = 0, guGan = 0) {
+  constructor(noteId, value, ban = 0, yan = 0, guGan = 0, duration = 0.0) {
     this.noteId = noteId;
     this.value = value;
     this.ban = ban;
     this.yan = yan;
     this.guGan = guGan;
+    this.duration = 0.0;
   }
 
   toggleBan() {
@@ -32,6 +33,7 @@ class NoteAnnotation {
       ban: this.ban,
       yan: this.yan,
       gu_gan: this.guGan,
+      duration: this.duration,
     };
   }
 
@@ -42,6 +44,7 @@ class NoteAnnotation {
       data.ban,
       data.yan,
       data.gu_gan,
+      data.duration
     );
   }
 }
@@ -80,6 +83,15 @@ class MultiRowAnnotationProject {
     this.projects = projects;
   }
 
+/*************  ✨ Windsurf Command ⭐  *************/
+  /**
+   * Converts the MultiRowAnnotationProject to a dictionary object.
+   *
+   * @return {Object} A dictionary object containing the project data.
+   * @property {string} type - The type of the project, always "multi-row".
+   * @property {Array<Object>} rows - The project data, an array of dictionaries.
+   */
+/*******  841c100b-7c58-4750-968a-fca1d52e0280  *******/
   toDict() {
     return {
       type: "multi-row",

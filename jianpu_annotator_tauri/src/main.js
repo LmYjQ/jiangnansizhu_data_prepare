@@ -74,7 +74,7 @@ async function onPickCsv() {
       // Auto load all rows in multi-row mode
       state.allProjects = state.csvData.map((row) => {
         const rowNotes = row.notes.map(
-          (v, i) => new NoteAnnotation(i, v, 0, 0, 0),
+          (v, i) => new NoteAnnotation(i, v, 0, 0, 0, 0.0),
         );
         return new AnnotationProject(row.source, rowNotes);
       });
@@ -123,7 +123,9 @@ async function onLoadLine() {
   elements.viewMode.value = "single";
 
   // Create annotation project
-  const notes = rowData.notes.map((v, i) => new NoteAnnotation(i, v, 0, 0, 0));
+  const notes = rowData.notes.map(
+    (v, i) => new NoteAnnotation(i, v, 0, 0, 0, 0.0),
+  );
   state.project = new AnnotationProject(rowData.source, notes);
   state.selectedIdx = -1;
   state.selectedRow = 0;
@@ -284,6 +286,12 @@ async function onExport() {
     if (savePath) {
       let jsonContent;
       if (state.viewMode === "all" && state.allProjects.length > 0) {
+        state.allProjects.forEach((proj) => {
+          proj.notes.forEach((note) => {
+            const { beats } = renderer.getNoteInfo(note);
+            note.duration = beats; 
+          });
+        });
         const multiProject = new MultiRowAnnotationProject(state.allProjects);
         jsonContent = multiProject.toJson();
       } else {
@@ -341,7 +349,6 @@ function onAutoBan() {
     for (let i = 0; i < notes.length; i++) {
       const note = notes[i];
       const { beats, isN } = renderer.getNoteInfo(note);
-
 
       // ======================
       // 关键：加入后是否超过小节 → 下一个音打板
