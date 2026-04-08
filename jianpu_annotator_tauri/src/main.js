@@ -296,6 +296,10 @@ async function onExport() {
         const multiProject = new MultiRowAnnotationProject(state.allProjects);
         jsonContent = multiProject.toJson();
       } else {
+        state.project.notes.forEach((note) => {
+          const { beats } = renderer.getNoteInfo(note);
+          note.duration = beats;
+        });
         jsonContent = state.project.toJson();
       }
       await writeTextFile(savePath, jsonContent);
