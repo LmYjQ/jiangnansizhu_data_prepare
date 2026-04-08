@@ -210,6 +210,34 @@ button:active {
   font-size: 12px;
   line-height: 1.6;
   white-space: pre-line;
+  margin-top: 10px;
+}
+
+.edit-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-group label {
+  font-size: 12px;
+  min-width: 20px;
+}
+
+.edit-group input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  width: 0;
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: monospace;
+}
+
+.edit-group input[type="text"]:focus {
+  border-color: #4A90D9;
+  outline: none;
 }
 
 /* Status Bar */

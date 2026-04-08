@@ -45,6 +45,7 @@ const elements = {
   canvas: document.getElementById("jianpu-canvas"),
   selectedInfo: document.getElementById("selected-info"),
   statusText: document.getElementById("status-text"),
+  noteValueInput: document.getElementById("note-value-input"),
 };
 
 // Initialize renderer
@@ -501,12 +502,13 @@ function redrawCanvas() {
 function updateSelectedInfo() {
   if (!state.project || state.selectedIdx < 0) {
     elements.selectedInfo.textContent = "无选中音符";
+    elements.noteValueInput.value = "";
     return;
   }
 
   const note = state.project.notes[state.selectedIdx];
+  elements.noteValueInput.value = note.value;
   elements.selectedInfo.textContent =
-    `音符: ${note.value}\n` +
     `板: ${note.ban ? "是" : "否"}\n` +
     `眼: ${note.yan ? "是" : "否"}\n` +
     `骨干音: ${note.guGan ? "是" : "否"}`;
@@ -543,6 +545,20 @@ elements.viewMode.addEventListener("change", () => {
 });
 
 document.addEventListener("keydown", onKeyDown);
+
+// Note value edit handler
+elements.noteValueInput.addEventListener("change", () => {
+  if (!state.project || state.selectedIdx < 0) return;
+
+  const note = state.project.notes[state.selectedIdx];
+  const newValue = elements.noteValueInput.value.trim();
+
+  if (newValue && newValue !== note.value) {
+    note.value = newValue;
+    redrawCanvas();
+    setStatus(`音符 ${state.selectedIdx + 1} 已修改为: ${newValue}`);
+  }
+});
 
 // Initial status
 setStatus("就绪");
