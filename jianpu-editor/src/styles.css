@@ -1,0 +1,151 @@
+:root {
+  font-family: "Songti", "SimSun", serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  background-color: #f5f5f5;
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #222;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 15px;
+  padding: 10px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 15px;
+  border-right: 1px solid #eee;
+}
+
+.toolbar-group:last-child {
+  border-right: none;
+}
+
+.toolbar-group label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.toolbar-group input[type="text"],
+.toolbar-group input[type="number"] {
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 60px;
+}
+
+.toolbar-group input[type="text"] {
+  width: 100px;
+}
+
+.toolbar-group button {
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toolbar-group button:hover {
+  background: #f0f0f0;
+  border-color: #888;
+}
+
+.editor-panel {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.canvas-container {
+  flex: 1;
+}
+
+#score-canvas {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.note-panel {
+  width: 200px;
+  padding: 15px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.note-panel h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.note-editing {
+  font-size: 13px;
+}
+
+.note-editing p {
+  color: #666;
+  margin: 0;
+}
+
+.note-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.note-edit-form label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.note-edit-form select,
+.note-edit-form input[type="number"] {
+  width: 90px;
+  padding: 3px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.note-edit-form input[type="checkbox"] {
+  width: auto;
+}
+
+.btn-group {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.status-bar {
+  padding: 8px 15px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-size: 13px;
+  color: #666;
+}
