@@ -1,4 +1,4 @@
-import { Note, Score } from './types';
+import { Score } from './types';
 
 /**
  * MIDI导出器
@@ -100,8 +100,6 @@ export class MidiExporter {
     // 音轨头: MTrk
     const track: number[] = [0x4D, 0x54, 0x72, 0x6B];
 
-    // 计算音轨长度（需要先占位）
-    let trackLength = 0;
     const trackData: number[] = [];
 
     for (const event of events) {

@@ -12,7 +12,9 @@ export interface Note {
   value: string;        // 音符值: "0"-"7", "bar", "space"
   octave: number;      // 八度调整，正数=高音，负数=低音
   duration: number;   // 时值，四分音符=1
-  dotted: boolean;      // 是否附点
+  dotted: boolean;     // 是否附点
+  ban: number;        // 板眼：板=强拍 (0=无, 1=板)
+  yan: number;        // 板眼：眼=弱拍 (0=无, 1=眼)
 }
 
 /**

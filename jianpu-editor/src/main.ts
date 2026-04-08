@@ -28,20 +28,20 @@ const testScore: Score = {
   tempo: 60,
   beatsPerBar: 4,
   notes: [
-    { id: 0, value: '1', octave: 0, duration: 1, dotted: false },
-    { id: 1, value: '2', octave: 0, duration: 1, dotted: false },
-    { id: 2, value: '3', octave: 0, duration: 1, dotted: false },
-    { id: 3, value: '1', octave: 0, duration: 1, dotted: false },
-    { id: 4, value: 'bar', octave: 0, duration: 0, dotted: false },
-    { id: 5, value: '5', octave: 0, duration: 1, dotted: false },
-    { id: 6, value: '5', octave: 0, duration: 0.5, dotted: true },
-    { id: 7, value: '6', octave: 0, duration: 0.5, dotted: false },
-    { id: 8, value: 'bar', octave: 0, duration: 0, dotted: false },
-    { id: 9, value: '1', octave: 1, duration: 1, dotted: false },
-    { id: 10, value: '1', octave: -1, duration: 1, dotted: false },
-    { id: 11, value: 'space', octave: 0, duration: 0.5, dotted: false },
-    { id: 12, value: '2', octave: 0, duration: 0.25, dotted: false },
-    { id: 13, value: '3', octave: 0, duration: 0.125, dotted: false },
+    { id: 0, value: '1', octave: 0, duration: 1, dotted: false, ban: 0, yan: 0 },
+    { id: 1, value: '2', octave: 0, duration: 1, dotted: false, ban: 0, yan: 0 },
+    { id: 2, value: '3', octave: 0, duration: 1, dotted: false, ban: 0, yan: 0 },
+    { id: 3, value: '1', octave: 0, duration: 1, dotted: false, ban: 0, yan: 0 },
+    { id: 4, value: 'bar', octave: 0, duration: 0, dotted: false, ban: 0, yan: 0 },
+    { id: 5, value: '5', octave: 0, duration: 1, dotted: false, ban: 0, yan: 0 },
+    { id: 6, value: '5', octave: 0, duration: 0.5, dotted: true, ban: 0, yan: 0 },
+    { id: 7, value: '6', octave: 0, duration: 0.5, dotted: false, ban: 0, yan: 0 },
+    { id: 8, value: 'bar', octave: 0, duration: 0, dotted: false, ban: 0, yan: 0 },
+    { id: 9, value: '1', octave: 1, duration: 1, dotted: false, ban: 0, yan: 0 },
+    { id: 10, value: '1', octave: -1, duration: 1, dotted: false, ban: 0, yan: 0 },
+    { id: 11, value: 'space', octave: 0, duration: 0.5, dotted: false, ban: 0, yan: 0 },
+    { id: 12, value: '2', octave: 0, duration: 0.25, dotted: false, ban: 0, yan: 0 },
+    { id: 13, value: '3', octave: 0, duration: 0.125, dotted: false, ban: 0, yan: 0 },
   ],
 };
 
@@ -98,6 +98,8 @@ function updateNotePanel(): void {
         <option value="0.125" ${note.duration === 0.125 ? 'selected' : ''}>1/8 拍</option>
       </select></label>
       <label>附点: <input type="checkbox" id="edit-dotted" ${note.dotted ? 'checked' : ''}></label>
+      <label>板: <input type="checkbox" id="edit-ban" ${note.ban === 1 ? 'checked' : ''}></label>
+      <label>眼: <input type="checkbox" id="edit-yan" ${note.yan === 1 ? 'checked' : ''}></label>
       <div class="btn-group">
         <button id="btn-delete-note">删除</button>
       </div>
@@ -120,6 +122,14 @@ function updateNotePanel(): void {
   document.getElementById('edit-dotted')?.addEventListener('change', (e) => {
     const dotted = (e.target as HTMLInputElement).checked;
     updateNote(selectedNoteId!, { dotted });
+  });
+  document.getElementById('edit-ban')?.addEventListener('change', (e) => {
+    const ban = (e.target as HTMLInputElement).checked ? 1 : 0;
+    updateNote(selectedNoteId!, { ban });
+  });
+  document.getElementById('edit-yan')?.addEventListener('change', (e) => {
+    const yan = (e.target as HTMLInputElement).checked ? 1 : 0;
+    updateNote(selectedNoteId!, { yan });
   });
   document.getElementById('btn-delete-note')?.addEventListener('click', () => {
     deleteNote(selectedNoteId!);
@@ -180,10 +190,23 @@ function deleteNote(id: number): void {
 }
 
 // 添加音符
-function addNote(note: Omit<Note, 'id'>): void {
+function addNote(note: Omit<Note, 'id'>, insertAfterId?: number): void {
   saveHistory();
   const maxId = score.notes.length > 0 ? Math.max(...score.notes.map(n => n.id)) : -1;
-  score.notes.push({ ...note, id: maxId + 1 });
+  const newNote = { ...note, id: maxId + 1 };
+
+  // 如果指定了插入位置，在该音符后面插入
+  if (insertAfterId !== undefined) {
+    const idx = score.notes.findIndex(n => n.id === insertAfterId);
+    if (idx !== -1) {
+      score.notes.splice(idx + 1, 0, newNote);
+    } else {
+      score.notes.push(newNote);
+    }
+  } else {
+    score.notes.push(newNote);
+  }
+
   // 更新时值记忆（音符和空格记时值，小节线不记）
   if (note.value !== 'bar') {
     lastDuration = note.duration;
@@ -235,15 +258,15 @@ setStatus('就绪 - 点击音符可编辑');
 
 // 工具栏事件
 document.getElementById('btn-add-note')?.addEventListener('click', () => {
-  addNote({ value: '1', octave: 0, duration: 1, dotted: false });
+  addNote({ value: '1', octave: 0, duration: 1, dotted: false, ban: 0, yan: 0 });
 });
 
 document.getElementById('btn-add-bar')?.addEventListener('click', () => {
-  addNote({ value: 'bar', octave: 0, duration: 0, dotted: false });
+  addNote({ value: 'bar', octave: 0, duration: 0, dotted: false, ban: 0, yan: 0 });
 });
 
 document.getElementById('btn-add-space')?.addEventListener('click', () => {
-  addNote({ value: 'space', octave: 0, duration: 0.5, dotted: false });
+  addNote({ value: 'space', octave: 0, duration: 0.5, dotted: false, ban: 0, yan: 0 });
 });
 
 // 模式切换
@@ -297,21 +320,54 @@ window.addEventListener('keydown', (e) => {
 
   // 编辑模式下：数字键/空格/b 快速输入
   if (editMode === 'edit') {
-    // 数字 0-7 输入音符
+    // 数字 0-7 输入音符（插入到选中音符后面）
     if (/^[0-7]$/.test(e.key)) {
-      addNote({ value: e.key, octave: 0, duration: lastDuration, dotted: false });
+      addNote({ value: e.key, octave: 0, duration: lastDuration, dotted: false, ban: 0, yan: 0 }, selectedNoteId ?? undefined);
       e.preventDefault();
       return;
     }
-    // 空格键输入空格
+    // 空格键输入空格（插入到选中音符后面）
     if (e.key === ' ' || e.key === 'space') {
-      addNote({ value: 'space', octave: 0, duration: lastDuration, dotted: false });
+      addNote({ value: 'space', octave: 0, duration: lastDuration, dotted: false, ban: 0, yan: 0 }, selectedNoteId ?? undefined);
       e.preventDefault();
       return;
     }
-    // b键输入小节线
+    // b键输入小节线或切换板
     if (e.key === 'b') {
-      addNote({ value: 'bar', octave: 0, duration: 0, dotted: false });
+      if (selectedNoteId !== null) {
+        const note = score.notes.find(n => n.id === selectedNoteId);
+        if (note) {
+          updateNote(selectedNoteId, { ban: note.ban === 1 ? 0 : 1 });
+        }
+      } else {
+        addNote({ value: 'bar', octave: 0, duration: 0, dotted: false, ban: 0, yan: 0 });
+      }
+      e.preventDefault();
+      return;
+    }
+    // x键（在无选中音符时输入小节线）
+    if (e.key === 'x') {
+      if (selectedNoteId === null) {
+        addNote({ value: 'bar', octave: 0, duration: 0, dotted: false, ban: 0, yan: 0 });
+        e.preventDefault();
+        return;
+      }
+    }
+    // y键切换眼（需要选中音符）
+    if (e.key === 'y' && selectedNoteId !== null) {
+      const note = score.notes.find(n => n.id === selectedNoteId);
+      if (note) {
+        updateNote(selectedNoteId, { yan: note.yan === 1 ? 0 : 1 });
+      }
+      e.preventDefault();
+      return;
+    }
+    // .键切换附点（需要选中音符）
+    if (e.key === '.' && selectedNoteId !== null) {
+      const note = score.notes.find(n => n.id === selectedNoteId);
+      if (note) {
+        updateNote(selectedNoteId, { dotted: !note.dotted });
+      }
       e.preventDefault();
       return;
     }

@@ -1,4 +1,4 @@
-import { Note, Score, NoteRenderInfo } from './types';
+import { Note, Score } from './types';
 import { JianpuRenderer } from './renderer';
 
 /**

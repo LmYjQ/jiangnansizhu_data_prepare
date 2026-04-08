@@ -142,10 +142,36 @@ h1 {
 }
 
 .status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 8px 15px;
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   font-size: 13px;
   color: #666;
+}
+
+.shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.shortcuts .shortcut-title {
+  font-weight: bold;
+  margin-right: 5px;
+}
+
+.shortcuts .sep {
+  margin: 0 8px;
+  color: #ccc;
+}
+
+.shortcuts span:not(.sep) {
+  background: #f5f5f5;
+  padding: 2px 5px;
+  border-radius: 3px;
+  margin-right: 2px;
 }
