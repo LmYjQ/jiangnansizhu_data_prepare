@@ -15,8 +15,8 @@ class TokenType(Enum):
     ORNAMENT = auto()     # !...@ 装饰音块（整体作为一个 token）
     TECH = auto()         # \u00C0...\u00C1 前缀特殊技法块
     TECH_SUFFIX = auto()   # \u0448...\u0449 后缀特殊技法块
+    TIME_SIGNATURE = auto()  # 拍号（如果需要单独处理的话）
     UNKNOWN = auto()       # 未识别的字符（需要检查是否遗漏）
-
 
 @dataclass
 class Token:
@@ -32,11 +32,19 @@ def tokenize(data: str, debug: bool = False) -> list[Token]:
     """把简谱字符串切分成 token 列表"""
     tokens = []
     i = 0
+    # 去掉所有的t字符
+    data = data.replace('t', '')
 
     while i < len(data):
         char = data[i]
         print(f'Processing char at index {i}: {data[i]}') if debug else None
         branch = None  # 用于调试日志
+
+        if data[i:].startswith('\\u0397\\u0392'):
+            branch = 'TIME_SIGNATURE'
+            tokens.append(Token(TokenType.TIME_SIGNATURE, '四二拍'))
+            i += len('\\u0397\\u0392')
+            continue
 
         # 2. 前缀特殊技法 \u00C0...\u00C1（必须先判断）
         PREFIX_TECH_START = '\\u00C0'
@@ -105,7 +113,7 @@ def tokenize(data: str, debug: bool = False) -> list[Token]:
             continue
 
         # 7. 前缀修饰符：8(高八度) b(低八度) z(八分) x(十六分) c(三十二分)
-        if char in '8bvxzcnZXVA*,.m':
+        if char in '8bvxzcnZXVA*,.mt':
             branch = 'PREFIX_MOD'
             tokens.append(Token(TokenType.PREFIX_MOD, char))
             i += 1
@@ -351,7 +359,7 @@ if __name__ == '__main__':
     for csv_row_num, (_, row) in enumerate(df.iterrows(), start=1):
         if len(row) > 9 and row.iloc[7] == 'QMMFont':
             datap = row.iloc[9]
-            if len(datap) <=10:
+            if len(datap) <=20:
                 print(f'行 {csv_row_num} 数据过短，跳过: {repr(datap)}')
                 continue
             # 单独调试某一行
