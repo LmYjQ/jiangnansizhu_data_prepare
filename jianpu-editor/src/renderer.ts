@@ -10,6 +10,7 @@ export class JianpuRenderer {
   private score: Score | null = null;
   private noteInfos: NoteRenderInfo[] = [];  // 存储所有音符的渲染信息
   private scrollX: number = 0;               // 横向滚动位置
+  private scrollY: number = 0;               // 纵向滚动位置
 
   constructor(canvas: HTMLCanvasElement, config: Partial<RenderConfig> = {}) {
     this.canvas = canvas;
@@ -28,6 +29,20 @@ export class JianpuRenderer {
   }
 
   /**
+   * 设置纵向滚动位置
+   */
+  setScrollY(y: number): void {
+    this.scrollY = Math.max(0, y);
+  }
+
+  /**
+   * 获取纵向滚动位置
+   */
+  getScrollY(): number {
+    return this.scrollY;
+  }
+
+  /**
    * 设置横向滚动位置
    */
   setScrollX(x: number): void {
@@ -42,6 +57,16 @@ export class JianpuRenderer {
   }
 
   /**
+   * 获取总高度（用于滚动计算）
+   */
+  getTotalHeight(): number {
+    if (!this.score || this.score.notes.length === 0) return this.canvas.height;
+    const notesPerRow = this.getNotesPerRow();
+    const totalRows = Math.ceil(this.score.notes.length / notesPerRow);
+    return totalRows * this.config.lineSpacing;
+  }
+
+  /**
    * 获取总宽度（用于滚动计算）
    */
   getTotalWidth(): number {
@@ -49,6 +74,13 @@ export class JianpuRenderer {
     return this.noteInfos.length > 0
       ? this.noteInfos[this.noteInfos.length - 1].x + this.config.noteSpacing * 2
       : this.canvas.width;
+  }
+
+  /**
+   * 获取每页行数
+   */
+  getRowsPerPage(): number {
+    return Math.floor(this.canvas.height / this.config.lineSpacing);
   }
 
   /**
@@ -266,7 +298,7 @@ export class JianpuRenderer {
         prevNote = null; // 换行时断开连接
       }
 
-      const rowY = lineSpacing * 0.5 + currentRow * lineSpacing;
+      const rowY = lineSpacing * 0.5 + currentRow * lineSpacing - this.scrollY;
       const x = currentX - this.scrollX;
 
       // 只渲染可见区域内的音符

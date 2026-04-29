@@ -81,12 +81,47 @@ h1 {
 
 .canvas-container {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 #score-canvas {
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.canvas-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+}
+
+.canvas-controls button {
+  padding: 4px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.canvas-controls button:hover {
+  background: #f0f0f0;
+}
+
+#scroll-bar {
+  flex: 1;
+  height: 6px;
+  cursor: pointer;
+}
+
+#page-info {
+  font-size: 13px;
+  color: #666;
+  min-width: 80px;
+  text-align: center;
 }
 
 .note-panel {

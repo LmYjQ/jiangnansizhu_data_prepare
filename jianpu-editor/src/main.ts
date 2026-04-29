@@ -9,6 +9,10 @@ const tempoInput = document.getElementById('tempo-input') as HTMLInputElement;
 const beatsInput = document.getElementById('beats-input') as HTMLInputElement;
 const statusMsg = document.getElementById('status-msg') as HTMLElement;
 const noteEditing = document.getElementById('note-editing') as HTMLElement;
+const scrollBar = document.getElementById('scroll-bar') as HTMLInputElement;
+const pageInfo = document.getElementById('page-info') as HTMLElement;
+const btnPageUp = document.getElementById('btn-page-up') as HTMLButtonElement;
+const btnPageDown = document.getElementById('btn-page-down') as HTMLButtonElement;
 
 // 初始化渲染器
 const renderer = new JianpuRenderer(canvas);
@@ -55,6 +59,7 @@ function render(): void {
   renderer.loadScore(score);
   renderer.render();
   updateNotePanel();
+  updateScrollBar();
 }
 
 // 更新状态
@@ -254,6 +259,7 @@ async function exportMidi(): Promise<void> {
 
 // 初始化
 render();
+updateScrollBar();
 setStatus('就绪 - 点击音符可编辑');
 
 // 工具栏事件
@@ -445,30 +451,58 @@ canvas.addEventListener('click', (e) => {
   }
 });
 
-// 横向滚动 - 鼠标拖动
-let isDragging = false;
-let lastMouseX = 0;
+// 滚动条控制
+function updateScrollBar(): void {
+  const totalHeight = renderer.getTotalHeight();
+  const visibleHeight = canvas.height;
+  const maxScroll = Math.max(0, totalHeight - visibleHeight);
 
-canvas.addEventListener('mousedown', (e) => {
-  isDragging = true;
-  lastMouseX = e.clientX;
-});
+  scrollBar.max = String(maxScroll);
+  scrollBar.value = String(renderer.getScrollY());
+  scrollBar.style.display = maxScroll > 0 ? 'block' : 'none';
 
-canvas.addEventListener('mousemove', (e) => {
-  if (!isDragging) return;
-  const dx = e.clientX - lastMouseX;
-  lastMouseX = e.clientX;
-  const currentScroll = renderer.getScrollX();
-  renderer.setScrollX(Math.max(0, currentScroll - dx));
+  // 更新页码信息
+  const notesPerRow = Math.floor((canvas.width - 80) / 40);
+  const totalRows = Math.ceil((score.notes.length || 0) / notesPerRow);
+  const rowsPerPage = renderer.getRowsPerPage();
+  const currentPage = Math.floor(renderer.getScrollY() / (rowsPerPage * 80)) + 1;
+  pageInfo.textContent = `第 ${currentPage} / ${Math.max(1, totalRows)} 页`;
+}
+
+scrollBar?.addEventListener('input', () => {
+  renderer.setScrollY(parseInt(scrollBar.value));
   render();
 });
 
-canvas.addEventListener('mouseup', () => {
-  isDragging = false;
+btnPageUp?.addEventListener('click', () => {
+  const notesPerRow = Math.floor((canvas.width - 80) / 40);
+  const rowsPerPage = Math.floor(canvas.height / 80);
+  const step = rowsPerPage * notesPerRow;
+  const noteIds = score.notes.map(n => n.id);
+  const currentIdx = selectedNoteId !== null ? noteIds.indexOf(selectedNoteId) : -1;
+  const newIdx = Math.max(0, currentIdx - step);
+  if (noteIds.length > 0) {
+    selectedNoteId = noteIds[newIdx];
+  }
+  renderer.setScrollY(Math.max(0, renderer.getScrollY() - rowsPerPage * 80));
+  render();
+  updateScrollBar();
+  if (selectedNoteId !== null) setStatus(`已选择音符 ID:${selectedNoteId}`);
 });
 
-canvas.addEventListener('mouseleave', () => {
-  isDragging = false;
+btnPageDown?.addEventListener('click', () => {
+  const rowsPerPage = Math.floor(canvas.height / 80);
+  const noteIds = score.notes.map(n => n.id);
+  const currentIdx = selectedNoteId !== null ? noteIds.indexOf(selectedNoteId) : -1;
+  const step = rowsPerPage * Math.floor((canvas.width - 80) / 40);
+  const newIdx = Math.min(noteIds.length - 1, currentIdx + step);
+  if (noteIds.length > 0) {
+    selectedNoteId = noteIds[newIdx];
+  }
+  renderer.setScrollY(renderer.getScrollY() + rowsPerPage * 80);
+  render();
+  updateScrollBar();
+  if (selectedNoteId !== null) setStatus(`已选择音符 ID:${selectedNoteId}`);
 });
 
 // 鼠标滚轮横向滚动
@@ -477,6 +511,13 @@ canvas.addEventListener('wheel', (e) => {
     const currentScroll = renderer.getScrollX();
     renderer.setScrollX(Math.max(0, currentScroll - e.deltaY));
     render();
-    e.preventDefault();
+  } else {
+    // 纵向滚动
+    const currentScroll = renderer.getScrollY();
+    const maxScroll = Math.max(0, renderer.getTotalHeight() - canvas.height);
+    renderer.setScrollY(Math.min(maxScroll, Math.max(0, currentScroll + e.deltaY)));
+    render();
+    updateScrollBar();
   }
+  e.preventDefault();
 }, { passive: false });

@@ -38,7 +38,13 @@
 
       <div class="editor-panel">
         <div class="canvas-container">
-          <canvas id="score-canvas" width="800" height="400"></canvas>
+          <canvas id="score-canvas" width="800" height="1000"></canvas>
+          <div class="canvas-controls">
+            <button id="btn-page-up">上一页</button>
+            <span id="page-info">第 1 / 1 页</span>
+            <button id="btn-page-down">下一页</button>
+            <input type="range" id="scroll-bar" min="0" max="0" style="display:none" />
+          </div>
         </div>
         <div class="note-panel">
           <h3>音符属性</h3>
