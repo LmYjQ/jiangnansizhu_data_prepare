@@ -91,8 +91,13 @@ export class JianpuRenderer {
 
   /**
    * 获取拍线条数
+   * 1拍=0条, 2拍=1条, 3拍=2条, 4拍=3条
+   * 1/2拍=1条, 1/4拍=2条, 1/8拍=3条
    */
   private getBeatLines(duration: number): number {
+    if (duration >= 4) return 3;
+    if (duration >= 3) return 2;
+    if (duration >= 2) return 1;
     if (duration >= 1) return 0;
     if (duration >= 0.5) return 1;
     if (duration >= 0.25) return 2;
@@ -120,19 +125,33 @@ export class JianpuRenderer {
   }
 
   /**
-   * 绘制拍线
+   * 绘制时值线（音符下方的短线，用于1/2、1/4、1/8拍）
    */
-  private drawBeatLines(x: number, y: number, count: number, prevNote: Note | null = null): void {
+  private drawBeatLinesBelow(x: number, y: number, count: number): void {
     if (count <= 0) return;
     this.ctx.strokeStyle = '#000';
     this.ctx.lineWidth = 1.5;
     for (let i = 0; i < count; i++) {
       const lineY = y + 14 + i * 6;
       this.ctx.beginPath();
-      // 根据前一个音符决定线的起始位置
-      const startX = (prevNote && /[1-7]/.test(prevNote.value)) ? x - 20 : x - 10;
-      this.ctx.moveTo(startX, lineY);
+      this.ctx.moveTo(x - 10, lineY);
       this.ctx.lineTo(x + 10, lineY);
+      this.ctx.stroke();
+    }
+  }
+
+  /**
+   * 绘制时值线（音符右侧的短线，用于2、3、4拍）
+   */
+  private drawBeatLinesRight(x: number, y: number, count: number): void {
+    if (count <= 0) return;
+    this.ctx.strokeStyle = '#000';
+    this.ctx.lineWidth = 1.5;
+    for (let i = 0; i < count; i++) {
+      const lineX = x + 12 + i * 8;
+      this.ctx.beginPath();
+      this.ctx.moveTo(lineX, y);
+      this.ctx.lineTo(lineX + 6, y);
       this.ctx.stroke();
     }
   }
@@ -182,7 +201,7 @@ export class JianpuRenderer {
   /**
    * 渲染单个音符，返回渲染信息
    */
-  renderNote(note: Note, x: number, y: number, row: number, prevNote: Note | null = null): NoteRenderInfo {
+  renderNote(note: Note, x: number, y: number, row: number): NoteRenderInfo {
     const width = this.config.noteSpacing;
     const height = this.config.noteFontSize;
 
@@ -240,9 +259,13 @@ export class JianpuRenderer {
     } else if (/[1-7]/.test(note.value)) {
       // 普通音符 1-7
       this.drawNoteValue(note.value, x, y);
-      // 画拍线（在音符下方）
+      // 画时值线：短于1拍画在下方，长于1拍画在右侧
       const beatLines = this.getBeatLines(note.duration);
-      this.drawBeatLines(x, y, beatLines, prevNote);
+      if (note.duration < 1) {
+        this.drawBeatLinesBelow(x, y, beatLines);
+      } else {
+        this.drawBeatLinesRight(x, y, beatLines);
+      }
       // 再画八度点（低八度点在拍线下方）
       this.drawOctaveDots(x, y, note.octave);
       // 最后画附点
@@ -297,7 +320,6 @@ export class JianpuRenderer {
     let currentX = startX;
     let currentRow = 0;
     let noteIndex = 0;
-    let prevNote: Note | null = null;
 
     // 渲染每个音符
     for (const note of this.score.notes) {
@@ -305,7 +327,6 @@ export class JianpuRenderer {
       if ((noteIndex > 0 && noteIndex % notesPerRow === 0) || note.lineBreak) {
         currentRow++;
         currentX = startX;
-        prevNote = null; // 换行时断开连接
       }
 
       const rowY = lineSpacing * 0.5 + currentRow * lineSpacing - this.scrollY;
@@ -314,10 +335,9 @@ export class JianpuRenderer {
       // 只渲染可见区域内的音符
       if (x > -noteSpacing && x < width + noteSpacing) {
         // 渲染音符（统一调用renderNote处理所有类型）
-        this.renderNote(note, x, rowY, currentRow, prevNote);
+        this.renderNote(note, x, rowY, currentRow);
       }
 
-      prevNote = note;
       currentX += noteSpacing;
       noteIndex++;
     }

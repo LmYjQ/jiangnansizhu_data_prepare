@@ -97,6 +97,9 @@ function updateNotePanel(): void {
       </select></label>
       <label>八度: <input type="number" id="edit-octave" value="${note.octave}" min="-2" max="2" style="width:50px"></label>
       <label>时值: <select id="edit-duration">
+        <option value="4" ${note.duration === 4 ? 'selected' : ''}>4 拍</option>
+        <option value="3" ${note.duration === 3 ? 'selected' : ''}>3 拍</option>
+        <option value="2" ${note.duration === 2 ? 'selected' : ''}>2 拍</option>
         <option value="1" ${note.duration === 1 ? 'selected' : ''}>1 拍</option>
         <option value="0.5" ${note.duration === 0.5 ? 'selected' : ''}>1/2 拍</option>
         <option value="0.25" ${note.duration === 0.25 ? 'selected' : ''}>1/4 拍</option>
@@ -343,20 +346,16 @@ window.addEventListener('keydown', (e) => {
       e.preventDefault();
       return;
     }
-    // b键输入小节线或切换板
-    if (e.key === 'b') {
-      if (selectedNoteId !== null) {
-        const note = score.notes.find(n => n.id === selectedNoteId);
-        if (note) {
-          updateNote(selectedNoteId, { ban: note.ban === 1 ? 0 : 1 });
-        }
-      } else {
-        addNote({ value: 'bar', octave: 0, duration: 0, dotted: false, ban: 0, yan: 0, lineBreak: false });
+    // b键切换板（需选中音符）
+    if (e.key === 'b' && selectedNoteId !== null) {
+      const note = score.notes.find(n => n.id === selectedNoteId);
+      if (note) {
+        updateNote(selectedNoteId, { ban: note.ban === 1 ? 0 : 1 });
       }
       e.preventDefault();
       return;
     }
-    // x键（在无选中音符时输入小节线）
+    // x键输入小节线
     if (e.key === 'x') {
       if (selectedNoteId === null) {
         addNote({ value: 'bar', octave: 0, duration: 0, dotted: false, ban: 0, yan: 0, lineBreak: false });
@@ -417,16 +416,20 @@ window.addEventListener('keydown', (e) => {
       e.preventDefault();
     }
     if (e.key === 'ArrowRight') {
-      const durations = [1, 0.5, 0.25, 0.125];
+      // 右键：时值变短（向0.125方向）
+      const durations = [4, 3, 2, 1, 0.5, 0.25, 0.125];
       const currentIdx = durations.indexOf(note.duration);
-      if (currentIdx < durations.length - 1) {
+      if (currentIdx === -1 || currentIdx >= durations.length - 1) {
+        // 不在列表中或已是最短，跳过
+      } else {
         updateNote(selectedNoteId, { duration: durations[currentIdx + 1] });
         lastDuration = durations[currentIdx + 1];
       }
       e.preventDefault();
     }
     if (e.key === 'ArrowLeft') {
-      const durations = [1, 0.5, 0.25, 0.125];
+      // 左键：时值变长（向4拍方向）
+      const durations = [4, 3, 2, 1, 0.5, 0.25, 0.125];
       const currentIdx = durations.indexOf(note.duration);
       if (currentIdx > 0) {
         updateNote(selectedNoteId, { duration: durations[currentIdx - 1] });
