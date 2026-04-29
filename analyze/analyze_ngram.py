@@ -32,37 +32,40 @@ def get_beat_words(row):
     return words
 
 
-def analyze_2gram(json_file):
-    """Return list of (prev_word, next_word, beat_position, row_idx) for each consecutive beat pair in the file."""
+def analyze_ngram(json_file, n=2):
+    """Return list of (ngram_tuple, end_position, row_idx) for each n-gram in the file."""
     with open(json_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
-    pairs = []
+    ngrams = []
     for row_idx, row in enumerate(data['rows']):
         words = get_beat_words(row)
-        for i in range(len(words) - 1):
-            pos1, word1 = words[i]
-            pos2, word2 = words[i + 1]
-            pairs.append((word1, word2, pos2, row_idx + 1, json_file))
-    return pairs
+        for i in range(len(words) - n + 1):
+            ngram = tuple(words[i + j][1] for j in range(n))
+            end_pos = words[i + n - 1][0]
+            ngrams.append((ngram, end_pos, row_idx + 1, json_file))
+    return ngrams
 
 
 if __name__ == '__main__':
+    # 可配置 n-gram 大小
+    N = 12
+
     dataset_dir = 'dataset'
-    all_pairs = []
+    all_ngrams = []
 
     for filename in os.listdir(dataset_dir):
         if filename.endswith('.json') and filename != 'transition_pattern.json':
             json_path = os.path.join(dataset_dir, filename)
             print(f"Analyzing: {filename}")
-            pairs = analyze_2gram(json_path)
-            all_pairs.extend(pairs)
+            ngrams = analyze_ngram(json_path, n=N)
+            all_ngrams.extend(ngrams)
 
-    # Aggregate by 2-gram key
+    # Aggregate by n-gram key
     result = defaultdict(lambda: {"count": 0, "occurrences": []})
 
-    for word1, word2, beat_pos, row_no, filepath in all_pairs:
-        key = f"{word1} | {word2}"
+    for ngram, beat_pos, row_no, filepath in all_ngrams:
+        key = " | ".join(ngram)
         result[key]["count"] += 1
         result[key]["occurrences"].append({
             "file": os.path.basename(filepath),
@@ -70,9 +73,9 @@ if __name__ == '__main__':
             "beat": round(beat_pos, 3)
         })
 
-    sorted_result = dict(sorted(result.items(), key=lambda x: -x[1]["count"]))
+    sorted_result = {k: v for k, v in sorted(result.items(), key=lambda x: -x[1]["count"]) if v["count"] > 1}
 
-    output_path = "transition_2gram.json"
+    output_path = f"transition_{N}gram.json"
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(sorted_result, f, ensure_ascii=False, indent=2)
-    print(f"Output: {output_path}, total 2-grams: {len(sorted_result)}")
+    print(f"Output: {output_path}, total {N}-grams: {len(sorted_result)}")

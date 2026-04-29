@@ -15,7 +15,12 @@ def analyze_patterns(json_file):
         pattern_notes = []
         beat_position = 0.0  # from start of row
         for note in notes:
-            pattern_notes.append(note['value'])
+            if note['value']=='bar':
+                continue
+            if 'token_dict' in note :
+                pattern_notes.append(note['token_dict']['main_value'])
+            else:
+                pattern_notes.append(note['value'])
             duration_cumulative += note['duration']
 
             beat_position += note['duration']
@@ -68,11 +73,13 @@ def generate_json(all_patterns):
         if first not in result:
             result[first] = {}
         if second not in result[first]:
-            result[first][second] = []
+            result[first][second] = {}
+
+        if pattern not in result[first][second]:
+            result[first][second][pattern] = []
 
         for file, row, beat, pattern_no in locations:
-            result[first][second].append({
-                "pattern": pattern,
+            result[first][second][pattern].append({
                 "file": os.path.basename(file),
                 "row": row,
                 "beat": round(beat, 3)
@@ -93,7 +100,7 @@ if __name__ == '__main__':
                 all_patterns[pattern].extend(locations)
 
     json_output = generate_json(all_patterns)
-    output_path = os.path.join(dataset_dir, f"transition_pattern.json")
+    output_path =  f"transition_pattern_agg.json"
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(json_output, f, ensure_ascii=False, indent=2)
     print(f"Output: {output_path}")
