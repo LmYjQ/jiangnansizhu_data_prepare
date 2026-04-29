@@ -1,6 +1,8 @@
 import { Note, Score } from './types';
 import { JianpuRenderer } from './renderer';
 import { MidiExporter } from './midi';
+import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 
 // 获取DOM元素
 const canvas = document.getElementById('score-canvas') as HTMLCanvasElement;
@@ -25,6 +27,84 @@ let editMode: 'edit' | 'select' = 'edit';
 
 // 上一个输入音符的时值（用于连续输入）
 let lastDuration: number = 1;
+
+// MIDI音符转简谱（C调）
+// MIDI音符60 = 中央C = 简谱1（中音）
+function midiToJianpu(midiNote: number): { value: string; octave: number } {
+  // MIDI 60 = 1（中音），每12个半音一个八度
+  const relativeNote = midiNote - 60;
+  const octave = Math.floor(relativeNote / 12);
+  const noteInOctave = ((relativeNote % 12) + 12) % 12;
+
+  // C大调音阶映射
+  const jianpuNotes = ['1', '2', '3', '4', '5', '6', '7'];
+  const scaleIndex = [0, 2, 4, 5, 7, 9, 11];
+  const noteIndex = scaleIndex.findIndex(s => s === noteInOctave);
+
+  if (noteIndex === -1) {
+    // 升降音处理
+    if (noteInOctave === 1) return { value: '1', octave }; // #1 -> 1
+    if (noteInOctave === 3) return { value: '2', octave }; // #2 -> 2
+    if (noteInOctave === 6) return { value: '5', octave }; // #5 -> 5
+    if (noteInOctave === 8) return { value: '6', octave }; // #6 -> 6
+    if (noteInOctave === 10) return { value: '7', octave }; // #7 -> 7
+    return { value: '1', octave: 0 };
+  }
+
+  return { value: jianpuNotes[noteIndex], octave };
+}
+
+// 初始化MIDI输入
+async function initMidi(): Promise<void> {
+  const statusEl = document.getElementById('midi-status');
+  if (!statusEl) return;
+
+  try {
+    // 先启动 MIDI 监听
+    const result = await invoke<string>('start_midi_listener');
+    setStatus(result);
+    statusEl.textContent = '监听中...';
+
+    // 然后监听事件（不等待）
+    listen<{ note: number; velocity: number }>('midi-note', (event) => {
+      const note = event.payload.note;
+      const jianpu = midiToJianpu(note);
+      const value = jianpu.value;
+
+      // 跳过非音符值
+      if (!/^[0-7]$/.test(value)) {
+        setStatus(`不支持的音符: MIDI ${note}`);
+        return;
+      }
+
+      // 插入音符
+      addNote({ value, octave: jianpu.octave, duration: lastDuration, dotted: false, ban: 0, yan: 0, lineBreak: false }, selectedNoteId ?? undefined);
+    });
+
+    listen<string>('midi-connected', (event) => {
+      const statusEl = document.getElementById('midi-status');
+      if (statusEl) {
+        statusEl.textContent = event.payload;
+        statusEl.className = 'midi-status connected';
+      }
+      setStatus(`MIDI已连接: ${event.payload}`);
+    });
+
+    listen<string>('midi-error', (event) => {
+      const statusEl = document.getElementById('midi-status');
+      if (statusEl) {
+        statusEl.textContent = '连接失败';
+        statusEl.className = 'midi-status error';
+      }
+      setStatus(`MIDI错误: ${event.payload}`);
+    });
+  } catch (err) {
+    console.error('MIDI初始化失败:', err);
+    statusEl.textContent = '初始化失败';
+    statusEl.className = 'midi-status error';
+    setStatus('MIDI初始化失败');
+  }
+}
 
 // 初始化测试数据
 const testScore: Score = {
@@ -300,6 +380,11 @@ document.getElementById('btn-redo')?.addEventListener('click', redo);
 document.getElementById('btn-export-json')?.addEventListener('click', exportJson);
 document.getElementById('btn-export-png')?.addEventListener('click', exportPng);
 document.getElementById('btn-export-midi')?.addEventListener('click', exportMidi);
+
+// MIDI输入按钮
+document.getElementById('btn-midi-in')?.addEventListener('click', () => {
+  initMidi();
+});
 
 // 曲名/速度/拍数变更
 titleInput?.addEventListener('change', () => {

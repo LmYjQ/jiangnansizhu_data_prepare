@@ -210,3 +210,21 @@ h1 {
   border-radius: 3px;
   margin-right: 2px;
 }
+
+.midi-status {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  background: #e0e0e0;
+  color: #666;
+}
+
+.midi-status.connected {
+  background: #4caf50;
+  color: #fff;
+}
+
+.midi-status.error {
+  background: #f44336;
+  color: #fff;
+}
