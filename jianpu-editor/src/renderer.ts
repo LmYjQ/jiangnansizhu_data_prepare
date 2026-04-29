@@ -62,7 +62,13 @@ export class JianpuRenderer {
   getTotalHeight(): number {
     if (!this.score || this.score.notes.length === 0) return this.canvas.height;
     const notesPerRow = this.getNotesPerRow();
-    const totalRows = Math.ceil(this.score.notes.length / notesPerRow);
+    // 计算总行数（含手动分页符产生的额外行）
+    let totalRows = 1;
+    for (let i = 0; i < this.score.notes.length; i++) {
+      if ((i > 0 && i % notesPerRow === 0) || this.score.notes[i].lineBreak) {
+        totalRows++;
+      }
+    }
     return totalRows * this.config.lineSpacing;
   }
 
@@ -196,6 +202,7 @@ export class JianpuRenderer {
         duration: note.duration,
         dotted: false,
         beatLines: 0,
+        lineBreak: note.lineBreak,
       });
     } else if (note.value === 'space') {
       // 空格，不渲染但占位
@@ -211,6 +218,7 @@ export class JianpuRenderer {
         duration: note.duration,
         dotted: false,
         beatLines: 0,
+        lineBreak: note.lineBreak,
       });
     } else if (note.value === '0') {
       // 休止符
@@ -227,6 +235,7 @@ export class JianpuRenderer {
         duration: note.duration,
         dotted: note.dotted,
         beatLines: 0,
+        lineBreak: note.lineBreak,
       });
     } else if (/[1-7]/.test(note.value)) {
       // 普通音符 1-7
@@ -252,6 +261,7 @@ export class JianpuRenderer {
         duration: note.duration,
         dotted: note.dotted,
         beatLines,
+        lineBreak: note.lineBreak,
       });
     }
 
@@ -291,8 +301,8 @@ export class JianpuRenderer {
 
     // 渲染每个音符
     for (const note of this.score.notes) {
-      // 换行检查
-      if (noteIndex > 0 && noteIndex % notesPerRow === 0) {
+      // 换行检查：达到每行音符数上限 或 手动分页符
+      if ((noteIndex > 0 && noteIndex % notesPerRow === 0) || note.lineBreak) {
         currentRow++;
         currentX = startX;
         prevNote = null; // 换行时断开连接
@@ -310,19 +320,6 @@ export class JianpuRenderer {
       prevNote = note;
       currentX += noteSpacing;
       noteIndex++;
-    }
-
-    // 绘制行分隔线（如果有多行）
-    if (currentRow > 0) {
-      this.ctx.strokeStyle = '#ccc';
-      this.ctx.lineWidth = 1;
-      for (let r = 1; r <= currentRow; r++) {
-        const lineY = lineSpacing * 0.5 + r * lineSpacing - lineSpacing / 2;
-        this.ctx.beginPath();
-        this.ctx.moveTo(30, lineY);
-        this.ctx.lineTo(width - 30, lineY);
-        this.ctx.stroke();
-      }
     }
   }
 

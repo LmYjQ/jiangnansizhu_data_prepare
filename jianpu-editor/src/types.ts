@@ -15,6 +15,7 @@ export interface Note {
   dotted: boolean;     // 是否附点
   ban: number;        // 板眼：板=强拍 (0=无, 1=板)
   yan: number;        // 板眼：眼=弱拍 (0=无, 1=眼)
+  lineBreak: boolean; // 手动分页符（在该音符后换行）
 }
 
 /**
@@ -42,6 +43,7 @@ export interface NoteRenderInfo {
   duration: number;    // 时值
   dotted: boolean;    // 附点
   beatLines: number;  // 拍线条数
+  lineBreak: boolean; // 分页符
 }
 
 /**

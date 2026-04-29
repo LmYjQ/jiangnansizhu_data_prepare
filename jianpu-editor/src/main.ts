@@ -32,20 +32,20 @@ const testScore: Score = {
   tempo: 60,
   beatsPerBar: 4,
   notes: [
-    { id: 0, value: '1', octave: 0, duration: 1, dotted: false, ban: 0, yan: 0 },
-    { id: 1, value: '2', octave: 0, duration: 1, dotted: false, ban: 0, yan: 0 },
-    { id: 2, value: '3', octave: 0, duration: 1, dotted: false, ban: 0, yan: 0 },
-    { id: 3, value: '1', octave: 0, duration: 1, dotted: false, ban: 0, yan: 0 },
-    { id: 4, value: 'bar', octave: 0, duration: 0, dotted: false, ban: 0, yan: 0 },
-    { id: 5, value: '5', octave: 0, duration: 1, dotted: false, ban: 0, yan: 0 },
-    { id: 6, value: '5', octave: 0, duration: 0.5, dotted: true, ban: 0, yan: 0 },
-    { id: 7, value: '6', octave: 0, duration: 0.5, dotted: false, ban: 0, yan: 0 },
-    { id: 8, value: 'bar', octave: 0, duration: 0, dotted: false, ban: 0, yan: 0 },
-    { id: 9, value: '1', octave: 1, duration: 1, dotted: false, ban: 0, yan: 0 },
-    { id: 10, value: '1', octave: -1, duration: 1, dotted: false, ban: 0, yan: 0 },
-    { id: 11, value: 'space', octave: 0, duration: 0.5, dotted: false, ban: 0, yan: 0 },
-    { id: 12, value: '2', octave: 0, duration: 0.25, dotted: false, ban: 0, yan: 0 },
-    { id: 13, value: '3', octave: 0, duration: 0.125, dotted: false, ban: 0, yan: 0 },
+    { id: 0, value: '1', octave: 0, duration: 1, dotted: false, ban: 0, yan: 0, lineBreak: false },
+    { id: 1, value: '2', octave: 0, duration: 1, dotted: false, ban: 0, yan: 0, lineBreak: false },
+    { id: 2, value: '3', octave: 0, duration: 1, dotted: false, ban: 0, yan: 0, lineBreak: false },
+    { id: 3, value: '1', octave: 0, duration: 1, dotted: false, ban: 0, yan: 0, lineBreak: false },
+    { id: 4, value: 'bar', octave: 0, duration: 0, dotted: false, ban: 0, yan: 0, lineBreak: false },
+    { id: 5, value: '5', octave: 0, duration: 1, dotted: false, ban: 0, yan: 0, lineBreak: false },
+    { id: 6, value: '5', octave: 0, duration: 0.5, dotted: true, ban: 0, yan: 0, lineBreak: false },
+    { id: 7, value: '6', octave: 0, duration: 0.5, dotted: false, ban: 0, yan: 0, lineBreak: false },
+    { id: 8, value: 'bar', octave: 0, duration: 0, dotted: false, ban: 0, yan: 0, lineBreak: false },
+    { id: 9, value: '1', octave: 1, duration: 1, dotted: false, ban: 0, yan: 0, lineBreak: false },
+    { id: 10, value: '1', octave: -1, duration: 1, dotted: false, ban: 0, yan: 0, lineBreak: false },
+    { id: 11, value: 'space', octave: 0, duration: 0.5, dotted: false, ban: 0, yan: 0, lineBreak: false },
+    { id: 12, value: '2', octave: 0, duration: 0.25, dotted: false, ban: 0, yan: 0, lineBreak: false },
+    { id: 13, value: '3', octave: 0, duration: 0.125, dotted: false, ban: 0, yan: 0, lineBreak: false },
   ],
 };
 
@@ -105,6 +105,7 @@ function updateNotePanel(): void {
       <label>附点: <input type="checkbox" id="edit-dotted" ${note.dotted ? 'checked' : ''}></label>
       <label>板: <input type="checkbox" id="edit-ban" ${note.ban === 1 ? 'checked' : ''}></label>
       <label>眼: <input type="checkbox" id="edit-yan" ${note.yan === 1 ? 'checked' : ''}></label>
+      <label>分页符: <input type="checkbox" id="edit-linebreak" ${note.lineBreak ? 'checked' : ''}></label>
       <div class="btn-group">
         <button id="btn-delete-note">删除</button>
       </div>
@@ -135,6 +136,10 @@ function updateNotePanel(): void {
   document.getElementById('edit-yan')?.addEventListener('change', (e) => {
     const yan = (e.target as HTMLInputElement).checked ? 1 : 0;
     updateNote(selectedNoteId!, { yan });
+  });
+  document.getElementById('edit-linebreak')?.addEventListener('change', (e) => {
+    const lineBreak = (e.target as HTMLInputElement).checked;
+    updateNote(selectedNoteId!, { lineBreak });
   });
   document.getElementById('btn-delete-note')?.addEventListener('click', () => {
     deleteNote(selectedNoteId!);
@@ -264,15 +269,15 @@ setStatus('就绪 - 点击音符可编辑');
 
 // 工具栏事件
 document.getElementById('btn-add-note')?.addEventListener('click', () => {
-  addNote({ value: '1', octave: 0, duration: 1, dotted: false, ban: 0, yan: 0 });
+  addNote({ value: '1', octave: 0, duration: 1, dotted: false, ban: 0, yan: 0, lineBreak: false });
 });
 
 document.getElementById('btn-add-bar')?.addEventListener('click', () => {
-  addNote({ value: 'bar', octave: 0, duration: 0, dotted: false, ban: 0, yan: 0 });
+  addNote({ value: 'bar', octave: 0, duration: 0, dotted: false, ban: 0, yan: 0, lineBreak: false });
 });
 
 document.getElementById('btn-add-space')?.addEventListener('click', () => {
-  addNote({ value: 'space', octave: 0, duration: 0.5, dotted: false, ban: 0, yan: 0 });
+  addNote({ value: 'space', octave: 0, duration: 0.5, dotted: false, ban: 0, yan: 0, lineBreak: false });
 });
 
 // 模式切换
@@ -328,13 +333,13 @@ window.addEventListener('keydown', (e) => {
   if (editMode === 'edit') {
     // 数字 0-7 输入音符（插入到选中音符后面）
     if (/^[0-7]$/.test(e.key)) {
-      addNote({ value: e.key, octave: 0, duration: lastDuration, dotted: false, ban: 0, yan: 0 }, selectedNoteId ?? undefined);
+      addNote({ value: e.key, octave: 0, duration: lastDuration, dotted: false, ban: 0, yan: 0, lineBreak: false }, selectedNoteId ?? undefined);
       e.preventDefault();
       return;
     }
     // 空格键输入空格（插入到选中音符后面）
     if (e.key === ' ' || e.key === 'space') {
-      addNote({ value: 'space', octave: 0, duration: lastDuration, dotted: false, ban: 0, yan: 0 }, selectedNoteId ?? undefined);
+      addNote({ value: 'space', octave: 0, duration: lastDuration, dotted: false, ban: 0, yan: 0, lineBreak: false }, selectedNoteId ?? undefined);
       e.preventDefault();
       return;
     }
@@ -346,7 +351,7 @@ window.addEventListener('keydown', (e) => {
           updateNote(selectedNoteId, { ban: note.ban === 1 ? 0 : 1 });
         }
       } else {
-        addNote({ value: 'bar', octave: 0, duration: 0, dotted: false, ban: 0, yan: 0 });
+        addNote({ value: 'bar', octave: 0, duration: 0, dotted: false, ban: 0, yan: 0, lineBreak: false });
       }
       e.preventDefault();
       return;
@@ -354,7 +359,7 @@ window.addEventListener('keydown', (e) => {
     // x键（在无选中音符时输入小节线）
     if (e.key === 'x') {
       if (selectedNoteId === null) {
-        addNote({ value: 'bar', octave: 0, duration: 0, dotted: false, ban: 0, yan: 0 });
+        addNote({ value: 'bar', octave: 0, duration: 0, dotted: false, ban: 0, yan: 0, lineBreak: false });
         e.preventDefault();
         return;
       }
