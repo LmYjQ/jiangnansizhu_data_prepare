@@ -18,14 +18,13 @@
         <label>曲名: <input type="text" id="title-input" value="未命名" /></label>
         <label>速度: <input type="number" id="tempo-input" value="60" min="30" max="200" /> BPM</label>
         <label>拍数: <input type="number" id="beats-input" value="4" min="2" max="8" /></label>
-        <label>时值: <select id="duration-input">
-            <option value="4">4 拍</option>
-            <option value="3">3 拍</option>
-            <option value="2">2 拍</option>
-            <option value="1" selected>1 拍</option>
-            <option value="0.5">1/2 拍</option>
-            <option value="0.25">1/4 拍</option>
-            <option value="0.125">1/8 拍</option>
+        <label>音符: <select id="note‌-input">
+            <option value="99">全音符</option>
+            <option value="2">二分音符</option>
+            <option value="1" selected>四分音符</option>
+            <option value="0.5">八分音符</option>
+            <option value="0.25">十六分音符</option>
+            <option value="0.125">三十二分音符</option>
           </select></label>
       </div>
       <div class="toolbar-group">
@@ -74,10 +73,6 @@
       <div class="shortcuts">
         <span class="shortcut-title">快捷键:</span>
         <span>0-7</span>音符
-        <span class="sep">|</span>
-        <span>空格</span>空格
-        <span class="sep">|</span>
-        <span>x</span>小节线
         <span class="sep">|</span>
         <span>.</span>附点
         <span class="sep">|</span>

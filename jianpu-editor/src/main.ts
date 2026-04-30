@@ -9,9 +9,7 @@ const svgElement = document.getElementById("score-svg") as SVGSVGElement;
 const titleInput = document.getElementById("title-input") as HTMLInputElement;
 const tempoInput = document.getElementById("tempo-input") as HTMLInputElement;
 const beatsInput = document.getElementById("beats-input") as HTMLInputElement;
-const durationInput = document.getElementById(
-  "duration-input",
-) as HTMLSelectElement;
+const noteInput = document.getElementById("note‌-input") as HTMLSelectElement;
 
 const statusMsg = document.getElementById("status-msg") as HTMLElement;
 const noteEditing = document.getElementById("note-editing") as HTMLElement;
@@ -87,6 +85,7 @@ async function initMidi(): Promise<void> {
         {
           value,
           octave: jianpu.octave,
+          type: lastDuration,
           duration: lastDuration,
           dotted: false,
           ban: 0,
@@ -303,6 +302,7 @@ function autoAddBarLines(): void {
           id: maxId + 1,
           value: "bar",
           octave: 0,
+          type: null,
           duration: 0,
           dotted: false,
           ban: 0,
@@ -354,7 +354,7 @@ function updateNotePanel(): void {
   noteEditing.innerHTML = `
     <div class="note-edit-form">
       <p>音符 ID: ${note.id}</p>
-      <label>类型: <select id="edit-value">
+      <label>音名: <select id="edit-value">
         <option value="1" ${note.value === "1" ? "selected" : ""}>1</option>
         <option value="2" ${note.value === "2" ? "selected" : ""}>2</option>
         <option value="3" ${note.value === "3" ? "selected" : ""}>3</option>
@@ -367,14 +367,13 @@ function updateNotePanel(): void {
         <option value="space" ${note.value === "space" ? "selected" : ""}>空格</option>
       </select></label>
       <label>八度: <input type="number" id="edit-octave" value="${note.octave}" min="-2" max="2" style="width:50px"></label>
-      <label>时值: <select id="edit-duration">
-        <option value="4" ${note.duration === 4 ? "selected" : ""}>4 拍</option>
-        <option value="3" ${note.duration === 3 ? "selected" : ""}>3 拍</option>
-        <option value="2" ${note.duration === 2 ? "selected" : ""}>2 拍</option>
-        <option value="1" ${note.duration === 1 ? "selected" : ""}>1 拍</option>
-        <option value="0.5" ${note.duration === 0.5 ? "selected" : ""}>1/2 拍</option>
-        <option value="0.25" ${note.duration === 0.25 ? "selected" : ""}>1/4 拍</option>
-        <option value="0.125" ${note.duration === 0.125 ? "selected" : ""}>1/8 拍</option>
+      <label>音符类型: <select id="edit-node">
+        <option value="99" ${note.type === 99 ? "selected" : ""}>全音符</option>
+        <option value="2" ${note.type === 2 ? "selected" : ""}>二分音符</option>
+        <option value="1" ${note.type === 1 ? "selected" : ""}>四分音符</option>
+        <option value="0.5" ${note.type === 0.5 ? "selected" : ""}>八分音符</option>
+        <option value="0.25" ${note.type === 0.25 ? "selected" : ""}>十六分音符</option>
+        <option value="0.125" ${note.type === 0.125 ? "selected" : ""}>三十二分音符</option>
       </select></label>
       <label>附点: <input type="checkbox" id="edit-dotted" ${note.dotted ? "checked" : ""}></label>
       <label>板: <input type="checkbox" id="edit-ban" ${note.ban === 1 ? "checked" : ""}></label>
@@ -395,9 +394,9 @@ function updateNotePanel(): void {
     const octave = parseInt((e.target as HTMLInputElement).value);
     updateNote(selectedNoteId!, { octave });
   });
-  document.getElementById("edit-duration")?.addEventListener("change", (e) => {
-    const duration = parseFloat((e.target as HTMLSelectElement).value);
-    updateNote(selectedNoteId!, { duration });
+  document.getElementById("edit-node")?.addEventListener("change", (e) => {
+    const type = parseFloat((e.target as HTMLSelectElement).value);
+    updateNote(selectedNoteId!, { type });
   });
   document.getElementById("edit-dotted")?.addEventListener("change", (e) => {
     const dotted = (e.target as HTMLInputElement).checked;
@@ -457,6 +456,25 @@ function updateNote(id: number, updates: Partial<Note>): void {
   const note = score.notes.find((n) => n.id === id);
   if (!note) return;
   saveHistory();
+  if (updates.type === 99) {
+    note.duration = score.beatsPerBar || 4;
+  } else {
+    note.duration = updates.type || 0;
+  }
+
+  // 如果修改了附点属性，需要调整duration以保持实际时长不变
+  if (updates.dotted !== undefined && updates.dotted !== note.dotted) {
+    // 计算当前的实际时长
+    const currentActualDuration = note.type || 0;
+
+    if (updates.dotted) {
+      note.duration = currentActualDuration * 1.5;
+    } else {
+      note.duration = currentActualDuration;
+    }
+  }
+
+  // 应用其他更新
   Object.assign(note, updates);
 
   // 自动添加小节线
@@ -579,9 +597,9 @@ document.getElementById("btn-midi-in")?.addEventListener("click", () => {
 });
 
 // 添加时值输入变更事件
-durationInput?.addEventListener("change", () => {
-  lastDuration = parseFloat(durationInput.value);
-  setStatus(`已设定时值为 ${lastDuration} 拍`);
+noteInput?.addEventListener("change", () => {
+  lastDuration = parseFloat(noteInput.value);
+  setStatus(`已设定音符为 ${lastDuration} 拍`);
 });
 
 // 曲名/速度/拍数变更
@@ -627,6 +645,7 @@ window.addEventListener("keydown", (e) => {
         {
           value: e.key,
           octave: 0,
+          type: lastDuration,
           duration: lastDuration,
           dotted: false,
           ban: 0,

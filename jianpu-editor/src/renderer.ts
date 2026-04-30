@@ -104,17 +104,16 @@ export class JianpuSVGRenderer {
    * 1拍=0条, 2拍=1条, 3拍=2条, 4拍=3条
    * 1/2拍=1条, 1/4拍=2条, 1/8拍=3条
    */
-  private getBeatLines(duration: number): number {
-    if (duration >= 4) return 3;
-    if (duration >= 3) return 2;
-    if (duration >= 2) return 1;
-    if (duration >= 1) return 0;
-    if (duration >= 0.5) return 1;
-    if (duration >= 0.25) return 2;
+  private getBeatLines(type: number | null): number {
+    if (type === null) return 0; // 未知类型
+    if (type >= 99)
+      return this.score?.beatsPerBar ? this.score.beatsPerBar - 1 : 3; // 全音符根据拍数决定线条数
+    if (type >= 2) return 1;
+    if (type >= 1) return 0;
+    if (type >= 0.5) return 1;
+    if (type >= 0.25) return 2;
     return 3;
   }
-
-  
 
   /**
    * 渲染单个音符，返回渲染信息
@@ -135,10 +134,10 @@ export class JianpuSVGRenderer {
     }
 
     // 如果有低八度点或时值线，需要额外空间
-    if (note.octave < 0 || note.duration < 1 || note.dotted) {
+    if (note.octave < 0 || (note?.type && note?.type < 1) || note.dotted) {
       const radius = this.config.dotRadius;
       const offset = this.config.octaveDotOffset;
-      const beatLines = this.getBeatLines(note.duration);
+      const beatLines = this.getBeatLines(note?.type);
       const extraHeight = Math.max(
         offset + Math.abs(note.octave) * (radius * 2 + 2),
         14 + beatLines * 6,
@@ -201,6 +200,7 @@ export class JianpuSVGRenderer {
         height: totalHeight,
         row,
         value: note.value,
+        type: null,
         octave: 0,
         duration: note.duration,
         dotted: false,
@@ -217,6 +217,7 @@ export class JianpuSVGRenderer {
         height: totalHeight,
         row,
         value: note.value,
+        type: null,
         octave: 0,
         duration: note.duration,
         dotted: false,
@@ -239,6 +240,7 @@ export class JianpuSVGRenderer {
         height: totalHeight,
         row,
         value: note.value,
+        type: note.type,
         octave: note.octave,
         duration: note.duration,
         dotted: note.dotted,
@@ -254,7 +256,7 @@ export class JianpuSVGRenderer {
       div.appendChild(noteValue);
 
       // 画时值线：短于1拍画在下方，长于1拍画在右侧
-      const beatLines = this.getBeatLines(note.duration);
+      const beatLines = this.getBeatLines(note.type);
       if (note.duration < 1) {
         // 在下方画线
         for (let i = 0; i < beatLines; i++) {
@@ -344,6 +346,7 @@ export class JianpuSVGRenderer {
         octave: note.octave,
         duration: note.duration,
         dotted: note.dotted,
+        type: note.type,
         beatLines,
         lineBreak: note.lineBreak,
       });
@@ -361,70 +364,70 @@ export class JianpuSVGRenderer {
     return Math.floor(availableWidth / this.config.noteSpacing);
   }
 
-/**
- * 渲染整首乐谱
- */
-render(selectedNoteId: number | null = null): void {
-  if (!this.score) return;
+  /**
+   * 渲染整首乐谱
+   */
+  render(selectedNoteId: number | null = null): void {
+    if (!this.score) return;
 
-  // 清空SVG元素
-  while (this.svgElement.firstChild) {
-    this.svgElement.removeChild(this.svgElement.firstChild);
-  }
-
-  const { noteSpacing, lineSpacing } = this.config;
-  const startX = 50;
-  const notesPerRow = this.getNotesPerRow();
-
-  // 重置音符信息
-  this.noteInfos = [];
-
-  let currentX = startX;
-  let currentRow = 0;
-  let noteIndex = 0;
-  let beatDuration = 0; // 当前拍的累计时长
-
-  // 渲染每个音符
-  for (const note of this.score.notes) {
-    // 换行检查：达到每行音符数上限 或 手动分页符
-    if ((noteIndex > 0 && noteIndex % notesPerRow === 0) || note.lineBreak) {
-      currentRow++;
-      currentX = startX;
-      beatDuration = 0; // 换行时重置拍时长
+    // 清空SVG元素
+    while (this.svgElement.firstChild) {
+      this.svgElement.removeChild(this.svgElement.firstChild);
     }
 
-    const rowY = lineSpacing * 0.5 + currentRow * lineSpacing - this.scrollY;
-    const x = currentX - this.scrollX;
+    const { noteSpacing, lineSpacing } = this.config;
+    const startX = 50;
+    const notesPerRow = this.getNotesPerRow();
 
-    // 只渲染可见区域内的音符
-    if (
-      x > -noteSpacing &&
-      x < this.svgElement.getBoundingClientRect().width + noteSpacing
-    ) {
-      // 渲染音符（统一调用renderNote处理所有类型）
-      this.renderNote(note, x, rowY, currentRow);
-    }
+    // 重置音符信息
+    this.noteInfos = [];
 
-    // 更新拍时长（只计算音符和空格，不计算小节线）
-    if (note.value !== 'bar') {
-      beatDuration += note.duration;
-      
-      // 如果拍时长达到或超过1，添加额外间距
-      if (beatDuration >= 1) {
-        currentX += noteSpacing * 0.5; // 添加半倍间距
-        beatDuration = 0; // 重置拍时长
+    let currentX = startX;
+    let currentRow = 0;
+    let noteIndex = 0;
+    let beatDuration = 0; // 当前拍的累计时长
+
+    // 渲染每个音符
+    for (const note of this.score.notes) {
+      // 换行检查：达到每行音符数上限 或 手动分页符
+      if ((noteIndex > 0 && noteIndex % notesPerRow === 0) || note.lineBreak) {
+        currentRow++;
+        currentX = startX;
+        beatDuration = 0; // 换行时重置拍时长
       }
-    }
-    
-    currentX += noteSpacing;
-    noteIndex++;
-  }
 
-  // 如果有选中的音符，高亮显示
-  if (selectedNoteId !== null) {
-    this.selectNote(selectedNoteId);
+      const rowY = lineSpacing * 0.5 + currentRow * lineSpacing - this.scrollY;
+      const x = currentX - this.scrollX;
+
+      // 只渲染可见区域内的音符
+      if (
+        x > -noteSpacing &&
+        x < this.svgElement.getBoundingClientRect().width + noteSpacing
+      ) {
+        // 渲染音符（统一调用renderNote处理所有类型）
+        this.renderNote(note, x, rowY, currentRow);
+      }
+
+      // 更新拍时长（只计算音符和空格，不计算小节线）
+      if (note.value !== "bar") {
+        beatDuration += note.duration;
+
+        // 如果拍时长达到或超过1，添加额外间距
+        if (beatDuration >= 1) {
+          currentX += noteSpacing * 0.5; // 添加半倍间距
+          beatDuration = 0; // 重置拍时长
+        }
+      }
+
+      currentX += noteSpacing;
+      noteIndex++;
+    }
+
+    // 如果有选中的音符，高亮显示
+    if (selectedNoteId !== null) {
+      this.selectNote(selectedNoteId);
+    }
   }
-}
 
   /**
    * 选择音符
