@@ -5,7 +5,11 @@ import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 
 // 获取DOM元素
-const svgElement = document.getElementById("score-svg") as SVGSVGElement;
+const svgElementRaw = document.getElementById("score-svg");
+if (!(svgElementRaw instanceof SVGSVGElement)) {
+  throw new Error('Element with id "score-svg" is not an SVGSVGElement.');
+}
+const svgElement = svgElementRaw;
 const titleInput = document.getElementById("title-input") as HTMLInputElement;
 const tempoInput = document.getElementById("tempo-input") as HTMLInputElement;
 const beatsInput = document.getElementById("beats-input") as HTMLInputElement;
@@ -13,7 +17,6 @@ const noteInput = document.getElementById("note‌-input") as HTMLSelectElement;
 
 const statusMsg = document.getElementById("status-msg") as HTMLElement;
 const noteEditing = document.getElementById("note-editing") as HTMLElement;
-const pageInfo = document.getElementById("page-info") as HTMLElement;
 const btnPageUp = document.getElementById("btn-page-up") as HTMLButtonElement;
 const btnPageDown = document.getElementById(
   "btn-page-down",
@@ -350,7 +353,6 @@ function updateNotePanel(): void {
     noteEditing.innerHTML = "<p>音符不存在</p>";
     return;
   }
-
   noteEditing.innerHTML = `
     <div class="note-edit-form">
       <p>音符 ID: ${note.id}</p>
@@ -459,11 +461,6 @@ function updateNote(id: number, updates: Partial<Note>): void {
   if (updates.type === 99) {
     note.duration = score.beatsPerBar || 4;
   } else {
-    note.duration = updates.type || 0;
-  }
-
-  // 如果修改了附点属性，需要调整duration以保持实际时长不变
-  if (updates.dotted !== undefined && updates.dotted !== note.dotted) {
     // 计算当前的实际时长
     const currentActualDuration = note.type || 0;
 
@@ -532,8 +529,9 @@ function addNote(note: Omit<Note, "id">, insertAfterId?: number): void {
 
 // 清空
 function clear(): void {
+  console.log("clear");
   if (confirm("确定要清空所有音符吗？")) {
-    saveHistory();
+    // saveHistory();
     score.notes = [];
     selectedNoteId = null;
     render();
@@ -596,7 +594,7 @@ document.getElementById("btn-midi-in")?.addEventListener("click", () => {
   initMidi();
 });
 
-// 添加时值输入变更事件
+// 添加音符输入变更事件
 noteInput?.addEventListener("change", () => {
   lastDuration = parseFloat(noteInput.value);
   setStatus(`已设定音符为 ${lastDuration} 拍`);
@@ -617,7 +615,7 @@ beatsInput?.addEventListener("change", () => {
 
 // 键盘事件
 window.addEventListener("keydown", (e) => {
-  console.log(e.key);
+  // console.log(e.key);
   // Ctrl+Z 撤销
   if (e.ctrlKey && e.key === "z") {
     undo();
@@ -646,7 +644,7 @@ window.addEventListener("keydown", (e) => {
           value: e.key,
           octave: 0,
           type: lastDuration,
-          duration: lastDuration,
+          duration: lastDuration === 99 ? score.beatsPerBar : lastDuration,
           dotted: false,
           ban: 0,
           yan: 0,
@@ -719,28 +717,6 @@ window.addEventListener("keydown", (e) => {
       updateNote(selectedNoteId, { octave: Math.max(-2, note.octave - 1) });
       e.preventDefault();
     }
-    if (e.key === "ArrowRight") {
-      // 右键：时值变短（向0.125方向）
-      const durations = [4, 3, 2, 1, 0.5, 0.25, 0.125];
-      const currentIdx = durations.indexOf(note.duration);
-      if (currentIdx === -1 || currentIdx >= durations.length - 1) {
-        // 不在列表中或已是最短，跳过
-      } else {
-        updateNote(selectedNoteId, { duration: durations[currentIdx + 1] });
-        lastDuration = durations[currentIdx + 1];
-      }
-      e.preventDefault();
-    }
-    if (e.key === "ArrowLeft") {
-      // 左键：时值变长（向4拍方向）
-      const durations = [4, 3, 2, 1, 0.5, 0.25, 0.125];
-      const currentIdx = durations.indexOf(note.duration);
-      if (currentIdx > 0) {
-        updateNote(selectedNoteId, { duration: durations[currentIdx - 1] });
-        lastDuration = durations[currentIdx - 1];
-      }
-      e.preventDefault();
-    }
   }
 });
 
@@ -751,21 +727,6 @@ svgElement.addEventListener("note-click", (e) => {
   renderer.selectNote(selectedNoteId);
   updateNotePanel();
   setStatus(`已选择音符 ID:${selectedNoteId}`);
-});
-
-// 监听SVG背景点击事件（用于取消选择）
-svgElement.addEventListener("click", (e) => {
-  // 检查点击的是否是音符组
-  const target = e.target as Element;
-  const noteGroup = target.closest(".note-group");
-
-  // 如果点击的不是音符组，则取消选择
-  if (!noteGroup) {
-    selectedNoteId = null;
-    renderer.selectNote(selectedNoteId); // 这会移除所有selected类
-    updateNotePanel();
-    setStatus("未选择音符");
-  }
 });
 
 btnPageUp?.addEventListener("click", () => {
