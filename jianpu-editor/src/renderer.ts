@@ -115,170 +115,35 @@ export class JianpuSVGRenderer {
   }
 
   /**
-   * 创建音符数字的SVG元素
-   */
-  private createNoteValueElement(
-    value: string,
-    x: number,
-    y: number,
-  ): SVGTextElement {
-    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    text.setAttribute("x", x.toString());
-    text.setAttribute("y", y.toString());
-    text.setAttribute("text-anchor", "middle");
-    text.setAttribute("dominant-baseline", "middle");
-    text.setAttribute("font-family", "Songti, SimSun, serif");
-    text.setAttribute("font-size", this.config.noteFontSize.toString());
-    text.setAttribute("fill", "#000");
-    text.textContent = value;
-    return text;
-  }
-
-  /**
-   * 创建圆点（八度点或附点）的SVG元素
-   */
-  private createDotElement(
-    x: number,
-    y: number,
-    radius: number = this.config.dotRadius,
-  ): SVGCircleElement {
-    const circle = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "circle",
-    );
-    circle.setAttribute("cx", x.toString());
-    circle.setAttribute("cy", y.toString());
-    circle.setAttribute("r", radius.toString());
-    circle.setAttribute("fill", "#000");
-    return circle;
-  }
-
-  /**
-   * 创建时值线（音符下方的短线，用于1/2、1/4、1/8拍）的SVG元素
-   */
-  private createBeatLinesBelowElement(
-    x: number,
-    y: number,
-    count: number,
-  ): SVGLineElement[] {
-    const lines: SVGLineElement[] = [];
-    if (count <= 0) return lines;
-
-    for (let i = 0; i < count; i++) {
-      const lineY = y + 14 + i * 6;
-      const line = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "line",
-      );
-      line.setAttribute("x1", (x - 10).toString());
-      line.setAttribute("y1", lineY.toString());
-      line.setAttribute("x2", (x + 10).toString());
-      line.setAttribute("y2", lineY.toString());
-      line.setAttribute("stroke", "#000");
-      line.setAttribute("stroke-width", "1.5");
-      lines.push(line);
-    }
-    return lines;
-  }
-
-  /**
-   * 创建时值线（音符右侧的短线，用于2、3、4拍）的SVG元素
-   */
-  private createBeatLinesRightElement(
-    x: number,
-    y: number,
-    count: number,
-  ): SVGLineElement[] {
-    const lines: SVGLineElement[] = [];
-    if (count <= 0) return lines;
-
-    for (let i = 0; i < count; i++) {
-      const lineX = x + 12 + i * 8;
-      const line = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "line",
-      );
-      line.setAttribute("x1", lineX.toString());
-      line.setAttribute("y1", y.toString());
-      line.setAttribute("x2", (lineX + 6).toString());
-      line.setAttribute("y2", y.toString());
-      line.setAttribute("stroke", "#000");
-      line.setAttribute("stroke-width", "1.5");
-      lines.push(line);
-    }
-    return lines;
-  }
-
-  /**
-   * 创建八度加点的SVG元素
-   */
-  private createOctaveDotsElements(
-    x: number,
-    y: number,
-    octave: number,
-  ): SVGCircleElement[] {
-    const dots: SVGCircleElement[] = [];
-    if (octave === 0) return dots;
-
-    const radius = this.config.dotRadius;
-    const offset = this.config.octaveDotOffset;
-
-    if (octave > 0) {
-      // 高八度：上方加点
-      for (let i = 0; i < octave; i++) {
-        const dot = this.createDotElement(
-          x,
-          y - offset - i * (radius * 2 + 2),
-          radius * 0.8,
-        );
-        dots.push(dot);
-      }
-    } else {
-      // 低八度：下方加点（在拍线下方）
-      for (let i = 0; i < Math.abs(octave); i++) {
-        const dot = this.createDotElement(
-          x,
-          y + offset + 20 + i * (radius * 2 + 2),
-          radius * 0.8,
-        );
-        dots.push(dot);
-      }
-    }
-    return dots;
-  }
-
-  /**
-   * 创建附点的SVG元素
-   */
-  private createDottedElement(x: number, y: number): SVGCircleElement {
-    return this.createDotElement(x + 18, y + 6, this.config.dotRadius);
-  }
-
-  /**
-   * 创建小节线的SVG元素
-   */
-  private createBarLineElement(
-    x: number,
-    _y: number,
-    rowY: number,
-  ): SVGLineElement {
-    const height = this.config.lineSpacing * 0.8;
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", x.toString());
-    line.setAttribute("y1", (rowY - height / 2).toString());
-    line.setAttribute("x2", x.toString());
-    line.setAttribute("y2", (rowY + height / 2).toString());
-    line.setAttribute("stroke", "#000");
-    line.setAttribute("stroke-width", "1");
-    return line;
-  }
-
-  /**
    * 渲染单个音符，返回渲染信息
    */
   renderNote(note: Note, x: number, y: number, row: number): NoteRenderInfo {
     const width = this.config.noteSpacing;
     const height = this.config.noteFontSize;
+
+    // 计算所需的总高度，包括八度点和时值线
+    // 基础高度为音符字体大小
+    let totalHeight = height;
+
+    // 如果有高八度点，需要额外空间
+    if (note.octave > 0) {
+      const radius = this.config.dotRadius;
+      const offset = this.config.octaveDotOffset;
+      totalHeight += offset + note.octave * (radius * 2 + 2);
+    }
+
+    // 如果有低八度点或时值线，需要额外空间
+    if (note.octave < 0 || note.duration < 1 || note.dotted) {
+      const radius = this.config.dotRadius;
+      const offset = this.config.octaveDotOffset;
+      const beatLines = this.getBeatLines(note.duration);
+      const extraHeight = Math.max(
+        offset + Math.abs(note.octave) * (radius * 2 + 2),
+        14 + beatLines * 6,
+        note.dotted ? 6 : 0,
+      );
+      totalHeight += extraHeight;
+    }
 
     // 创建一个foreignObject元素作为音符的容器
     const foreignObject = document.createElementNS(
@@ -287,10 +152,11 @@ export class JianpuSVGRenderer {
     );
     foreignObject.setAttribute("id", `note-${note.id}`);
     foreignObject.setAttribute("class", "note-group");
+    // 调整foreignObject的位置和大小
     foreignObject.setAttribute("x", (x - width / 2).toString());
-    foreignObject.setAttribute("y", (y - height / 2).toString());
+    foreignObject.setAttribute("y", (y - totalHeight / 2).toString());
     foreignObject.setAttribute("width", width.toString());
-    foreignObject.setAttribute("height", height.toString());
+    foreignObject.setAttribute("height", totalHeight.toString());
 
     // 创建一个div作为foreignObject的内容
     const div = document.createElement("div");
@@ -328,9 +194,9 @@ export class JianpuSVGRenderer {
       this.noteInfos.push({
         id: note.id,
         x: x - width / 2,
-        y: y - height / 2,
+        y: y - totalHeight / 2,
         width,
-        height,
+        height: totalHeight,
         row,
         value: note.value,
         octave: 0,
@@ -344,9 +210,9 @@ export class JianpuSVGRenderer {
       this.noteInfos.push({
         id: note.id,
         x: x - width / 2,
-        y: y - height / 2,
+        y: y - totalHeight / 2,
         width,
-        height,
+        height: totalHeight,
         row,
         value: note.value,
         octave: 0,
@@ -366,9 +232,9 @@ export class JianpuSVGRenderer {
       this.noteInfos.push({
         id: note.id,
         x: x - width / 2,
-        y: y - height / 2,
+        y: y - totalHeight / 2,
         width,
-        height,
+        height: totalHeight,
         row,
         value: note.value,
         octave: note.octave,
@@ -395,7 +261,7 @@ export class JianpuSVGRenderer {
           line.style.width = "20px";
           line.style.height = "1.5px";
           line.style.backgroundColor = "#000";
-          line.style.top = `${25 + i * 6}px`;
+          line.style.top = `${totalHeight / 2 + 14 + i * 6}px`;
           line.style.left = "50%";
           line.style.transform = "translateX(-50%)";
           div.appendChild(line);
@@ -417,40 +283,36 @@ export class JianpuSVGRenderer {
 
       // 画八度点
       if (note.octave !== 0) {
-        if (note.octave !== 0) {
-          const radius = this.config.dotRadius;
-          const offset = this.config.octaveDotOffset;
+        const radius = this.config.dotRadius;
+        const offset = this.config.octaveDotOffset;
 
-          if (note.octave > 0) {
-            // 高八度：上方加点
-            for (let i = 0; i < note.octave; i++) {
-              const dot = document.createElement("div");
-              dot.style.position = "absolute";
-              dot.style.width = `${radius * 1.3}px`;
-              dot.style.height = `${radius * 1.3}px`;
-              dot.style.borderRadius = "50%";
-              dot.style.backgroundColor = "#000";
-              // 使用百分比定位，50%是垂直居中
-              dot.style.top = `calc(50% - ${offset + i * (radius * 2 + 2)}px)`;
-              dot.style.left = "50%";
-              dot.style.transform = "translate(-50%, -50%)";
-              div.appendChild(dot);
-            }
-          } else {
-            // 低八度：下方加点
-            for (let i = 0; i < Math.abs(note.octave); i++) {
-              const dot = document.createElement("div");
-              dot.style.position = "absolute";
-              dot.style.width = `${radius * 1.3}px`;
-              dot.style.height = `${radius * 1.3}px`;
-              dot.style.borderRadius = "50%";
-              dot.style.backgroundColor = "#000";
-              // 使用百分比定位，50%是垂直居中
-              dot.style.top = `calc(50% + ${offset + i * (radius * 2 + 2)}px)`;
-              dot.style.left = "50%";
-              dot.style.transform = "translate(-50%, -50%)";
-              div.appendChild(dot);
-            }
+        if (note.octave > 0) {
+          // 高八度：上方加点
+          for (let i = 0; i < note.octave; i++) {
+            const dot = document.createElement("div");
+            dot.style.position = "absolute";
+            dot.style.width = `${radius * 1.3}px`;
+            dot.style.height = `${radius * 1.3}px`;
+            dot.style.borderRadius = "50%";
+            dot.style.backgroundColor = "#000";
+            dot.style.top = `calc(50% - ${offset + i * (radius * 2 + 2)}px)`;
+            dot.style.left = "50%";
+            dot.style.transform = "translate(-50%, -50%)";
+            div.appendChild(dot);
+          }
+        } else {
+          // 低八度：下方加点
+          for (let i = 0; i < Math.abs(note.octave); i++) {
+            const dot = document.createElement("div");
+            dot.style.position = "absolute";
+            dot.style.width = `${radius * 1.3}px`;
+            dot.style.height = `${radius * 1.3}px`;
+            dot.style.borderRadius = "50%";
+            dot.style.backgroundColor = "#000";
+            dot.style.top = `calc(50% + ${offset + i * (radius * 2 + 2)}px)`;
+            dot.style.left = "50%";
+            dot.style.transform = "translate(-50%, -50%)";
+            div.appendChild(dot);
           }
         }
       }
@@ -463,17 +325,18 @@ export class JianpuSVGRenderer {
         dotted.style.height = `${this.config.dotRadius * 1.3}px`;
         dotted.style.borderRadius = "50%";
         dotted.style.backgroundColor = "#000";
-        dotted.style.top = `${10 + 6}px`;
-        dotted.style.left = `${10 + 18}px`;
+        dotted.style.top = "calc(50% + 6px)";
+        dotted.style.left = "calc(50% + 18px)";
+        dotted.style.transform = "translate(-50%, -50%)";
         div.appendChild(dotted);
       }
 
       this.noteInfos.push({
         id: note.id,
         x: x - width / 2,
-        y: y - height / 2,
+        y: y - totalHeight / 2,
         width,
-        height,
+        height: totalHeight,
         row,
         value: note.value,
         octave: note.octave,
