@@ -1,11 +1,11 @@
 import { Note, Score } from "./types";
-import { JianpuRenderer } from "./renderer";
+import { JianpuSVGRenderer } from "./renderer";
 import { MidiExporter } from "./midi";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 
 // 获取DOM元素
-const canvas = document.getElementById("score-canvas") as HTMLCanvasElement;
+const svgElement = document.getElementById("score-svg") as SVGSVGElement;
 const titleInput = document.getElementById("title-input") as HTMLInputElement;
 const tempoInput = document.getElementById("tempo-input") as HTMLInputElement;
 const beatsInput = document.getElementById("beats-input") as HTMLInputElement;
@@ -18,7 +18,7 @@ const btnPageDown = document.getElementById(
 ) as HTMLButtonElement;
 
 // 初始化渲染器
-const renderer = new JianpuRenderer(canvas);
+const renderer = new JianpuSVGRenderer(svgElement);
 
 // 当前选中的音符ID
 let selectedNoteId: number | null = null;
@@ -470,12 +470,6 @@ function exportJson(): void {
   setStatus("已导出JSON");
 }
 
-// 导出PNG
-async function exportPng(): Promise<void> {
-  await renderer.saveImage(`${score.title || "简谱"}.png`);
-  setStatus("已导出PNG");
-}
-
 // 导出MIDI
 async function exportMidi(): Promise<void> {
   const exporter = new MidiExporter(score);
@@ -545,7 +539,6 @@ document.getElementById("btn-redo")?.addEventListener("click", redo);
 document
   .getElementById("btn-export-json")
   ?.addEventListener("click", exportJson);
-document.getElementById("btn-export-png")?.addEventListener("click", exportPng);
 document
   .getElementById("btn-export-midi")
   ?.addEventListener("click", exportMidi);
@@ -728,29 +721,33 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-// 画布点击事件 - 选择音符
-canvas.addEventListener("click", (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
-  const mouseX = (e.clientX - rect.left) * scaleX;
-  const mouseY = (e.clientY - rect.top) * scaleY;
+// 监听音符点击事件
+svgElement.addEventListener("note-click", (e) => {
+  const event = e as CustomEvent<{ noteId: number }>;
+  selectedNoteId = event.detail.noteId;
+  renderer.selectNote(selectedNoteId);
+  updateNotePanel();
+  setStatus(`已选择音符 ID:${selectedNoteId}`);
+});
 
-  const noteInfo = renderer.findNoteAt(mouseX, mouseY);
-  if (noteInfo) {
-    selectedNoteId = noteInfo.id;
-    render();
-    setStatus(`已选择音符 ID:${noteInfo.id}`);
-  } else {
+// 监听SVG背景点击事件（用于取消选择）
+svgElement.addEventListener("click", (e) => {
+  // 检查点击的是否是音符组
+  const target = e.target as Element;
+  const noteGroup = target.closest(".note-group");
+
+  // 如果点击的不是音符组，则取消选择
+  if (!noteGroup) {
     selectedNoteId = null;
-    render();
+    renderer.selectNote(selectedNoteId); // 这会移除所有selected类
+    updateNotePanel();
+    setStatus("未选择音符");
   }
 });
 
-
 btnPageUp?.addEventListener("click", () => {
-  const notesPerRow = Math.floor((canvas.width - 80) / 40);
-  const rowsPerPage = Math.floor(canvas.height / 80);
+  const notesPerRow = Math.floor((svgElement.width.baseVal.value - 80) / 40);
+  const rowsPerPage = Math.floor(svgElement.height.baseVal.value / 80);
   const step = rowsPerPage * notesPerRow;
   const noteIds = score.notes.map((n) => n.id);
   const currentIdx =
@@ -764,11 +761,12 @@ btnPageUp?.addEventListener("click", () => {
 });
 
 btnPageDown?.addEventListener("click", () => {
-  const rowsPerPage = Math.floor(canvas.height / 80);
+  const rowsPerPage = Math.floor(svgElement.height.baseVal.value / 80);
   const noteIds = score.notes.map((n) => n.id);
   const currentIdx =
     selectedNoteId !== null ? noteIds.indexOf(selectedNoteId) : -1;
-  const step = rowsPerPage * Math.floor((canvas.width - 80) / 40);
+  const step =
+    rowsPerPage * Math.floor((svgElement.width.baseVal.value - 80) / 40);
   const newIdx = Math.min(noteIds.length - 1, currentIdx + step);
   if (noteIds.length > 0) {
     selectedNoteId = noteIds[newIdx];
@@ -778,7 +776,7 @@ btnPageDown?.addEventListener("click", () => {
 });
 
 // 鼠标滚轮横向滚动
-canvas.addEventListener(
+svgElement.addEventListener(
   "wheel",
   (e) => {
     if (e.shiftKey) {
@@ -788,7 +786,10 @@ canvas.addEventListener(
     } else {
       // 纵向滚动
       const currentScroll = renderer.getScrollY();
-      const maxScroll = Math.max(0, renderer.getTotalHeight() - canvas.height);
+      const maxScroll = Math.max(
+        0,
+        renderer.getTotalHeight() - svgElement.height.baseVal.value,
+      );
       renderer.setScrollY(
         Math.min(maxScroll, Math.max(0, currentScroll + e.deltaY)),
       );

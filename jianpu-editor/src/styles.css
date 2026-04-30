@@ -100,14 +100,6 @@ h1 {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   padding: 10px;
 }
-.canvas-scroll canvas {
-  cursor: pointer;
-  height: 100%;
-  display: block;
-  transform: scale(0.8); /* 缩小画布到80% */
-  transform-origin: top left; /* 设置缩放原点为左上角 */
-}
-
 .canvas-controls {
   display: flex;
   align-items: center;
@@ -242,4 +234,14 @@ h1 {
 .midi-status.error {
   background: #f44336;
   color: #fff;
+}
+
+/* 每个音 */
+.note-group {
+  cursor: pointer;
+  background-color: transparent;
+}
+
+.note-group.selected {
+  background-color: #e0f7fa;
 }
