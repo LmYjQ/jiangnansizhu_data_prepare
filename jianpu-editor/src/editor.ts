@@ -218,28 +218,29 @@ export class Editor {
   /**
    * 键盘快捷键处理
    */
-  handleKeyDown(e: KeyboardEvent): boolean {
-    // Ctrl+Z = 撤销
-    if (e.ctrlKey && e.key === 'z') {
-      this.undo();
-      return true;
-    }
-    // Ctrl+Y = 重做
-    if (e.ctrlKey && e.key === 'y') {
-      this.redo();
-      return true;
-    }
-    // Delete = 删除选中音符
-    if (e.key === 'Delete' && this.selectedNoteId !== null) {
-      this.deleteNote(this.selectedNoteId);
-      return true;
-    }
-    // 数字键 1-7 = 切换音符值
-    if (this.selectedNoteId !== null && ['1', '2', '3', '4', '5', '6', '7', '0'].includes(e.key)) {
-      this.updateNote(this.selectedNoteId, { value: e.key });
-      return true;
-    }
-    // 空格键 = 播放/暂停（待实现）
-    return false;
-  }
+//   handleKeyDown(e: KeyboardEvent): boolean {
+//     console.log('KeyDown:', e.key);
+//     // Ctrl+Z = 撤销
+//     if (e.ctrlKey && e.key === 'z') {
+//       this.undo();
+//       return true;
+//     }
+//     // Ctrl+Y = 重做
+//     if (e.ctrlKey && e.key === 'y') {
+//       this.redo();
+//       return true;
+//     }
+//     // Delete = 删除选中音符
+//     if (e.key === 'Delete' && this.selectedNoteId !== null) {
+//       this.deleteNote(this.selectedNoteId);
+//       return true;
+//     }
+//     // 数字键 1-7 = 切换音符值
+//     if (this.selectedNoteId !== null && ['1', '2', '3', '4', '5', '6', '7', '0'].includes(e.key)) {
+//       this.updateNote(this.selectedNoteId, { value: e.key });
+//       return true;
+//     }
+//     // 空格键 = 播放/暂停（待实现）
+//     return false;
+//   }
 }
