@@ -114,6 +114,8 @@ export class JianpuSVGRenderer {
     return 3;
   }
 
+  
+
   /**
    * 渲染单个音符，返回渲染信息
    */
@@ -326,7 +328,7 @@ export class JianpuSVGRenderer {
         dotted.style.borderRadius = "50%";
         dotted.style.backgroundColor = "#000";
         dotted.style.top = "calc(50% + 6px)";
-        dotted.style.left = "calc(50% + 18px)";
+        dotted.style.left = "calc(50% + 8px)";
         dotted.style.transform = "translate(-50%, -50%)";
         div.appendChild(dotted);
       }
@@ -359,57 +361,70 @@ export class JianpuSVGRenderer {
     return Math.floor(availableWidth / this.config.noteSpacing);
   }
 
-  /**
-   * 渲染整首乐谱
-   */
-  render(selectedNoteId: number | null = null): void {
-    if (!this.score) return;
+/**
+ * 渲染整首乐谱
+ */
+render(selectedNoteId: number | null = null): void {
+  if (!this.score) return;
 
-    // 清空SVG元素
-    while (this.svgElement.firstChild) {
-      this.svgElement.removeChild(this.svgElement.firstChild);
-    }
-
-    const { noteSpacing, lineSpacing } = this.config;
-    const startX = 50;
-    const notesPerRow = this.getNotesPerRow();
-
-    // 重置音符信息
-    this.noteInfos = [];
-
-    let currentX = startX;
-    let currentRow = 0;
-    let noteIndex = 0;
-
-    // 渲染每个音符
-    for (const note of this.score.notes) {
-      // 换行检查：达到每行音符数上限 或 手动分页符
-      if ((noteIndex > 0 && noteIndex % notesPerRow === 0) || note.lineBreak) {
-        currentRow++;
-        currentX = startX;
-      }
-
-      const rowY = lineSpacing * 0.5 + currentRow * lineSpacing - this.scrollY;
-      const x = currentX - this.scrollX;
-
-      // 只渲染可见区域内的音符
-      if (
-        x > -noteSpacing &&
-        x < this.svgElement.getBoundingClientRect().width + noteSpacing
-      ) {
-        // 渲染音符（统一调用renderNote处理所有类型）
-        this.renderNote(note, x, rowY, currentRow);
-      }
-
-      currentX += noteSpacing;
-      noteIndex++;
-    }
-
-    // 如果有选中的音符，高亮显示
-    if (selectedNoteId !== null) {
-      this.selectNote(selectedNoteId);
-    }
+  // 清空SVG元素
+  while (this.svgElement.firstChild) {
+    this.svgElement.removeChild(this.svgElement.firstChild);
   }
+
+  const { noteSpacing, lineSpacing } = this.config;
+  const startX = 50;
+  const notesPerRow = this.getNotesPerRow();
+
+  // 重置音符信息
+  this.noteInfos = [];
+
+  let currentX = startX;
+  let currentRow = 0;
+  let noteIndex = 0;
+  let beatDuration = 0; // 当前拍的累计时长
+
+  // 渲染每个音符
+  for (const note of this.score.notes) {
+    // 换行检查：达到每行音符数上限 或 手动分页符
+    if ((noteIndex > 0 && noteIndex % notesPerRow === 0) || note.lineBreak) {
+      currentRow++;
+      currentX = startX;
+      beatDuration = 0; // 换行时重置拍时长
+    }
+
+    const rowY = lineSpacing * 0.5 + currentRow * lineSpacing - this.scrollY;
+    const x = currentX - this.scrollX;
+
+    // 只渲染可见区域内的音符
+    if (
+      x > -noteSpacing &&
+      x < this.svgElement.getBoundingClientRect().width + noteSpacing
+    ) {
+      // 渲染音符（统一调用renderNote处理所有类型）
+      this.renderNote(note, x, rowY, currentRow);
+    }
+
+    // 更新拍时长（只计算音符和空格，不计算小节线）
+    if (note.value !== 'bar') {
+      beatDuration += note.duration;
+      
+      // 如果拍时长达到或超过1，添加额外间距
+      if (beatDuration >= 1) {
+        currentX += noteSpacing * 0.5; // 添加半倍间距
+        beatDuration = 0; // 重置拍时长
+      }
+    }
+    
+    currentX += noteSpacing;
+    noteIndex++;
+  }
+
+  // 如果有选中的音符，高亮显示
+  if (selectedNoteId !== null) {
+    this.selectNote(selectedNoteId);
+  }
+}
 
   /**
    * 选择音符

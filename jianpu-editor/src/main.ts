@@ -267,6 +267,56 @@ const testScore: Score = {
   ],
 };
 
+/**
+ * 自动添加小节线
+ */
+function autoAddBarLines(): void {
+  // 移除所有现有的小节线
+  score.notes = score.notes.filter((note) => note.value !== "bar");
+
+  // 计算每小节应该包含的拍数
+  const beatsPerBar = score.beatsPerBar || 4;
+
+  // 遍历音符，计算累计拍数
+  let currentBeat = 0;
+  const newNotes = [];
+
+  for (const note of score.notes) {
+    newNotes.push(note);
+
+    // 只计算音符和空格，不计算小节线
+    if (note.value !== "bar") {
+      currentBeat += note.duration;
+
+      // 如果累计拍数达到或超过每小节拍数，添加小节线
+      if (currentBeat >= beatsPerBar) {
+        // 创建小节线
+        const maxId =
+          score.notes.length > 0
+            ? Math.max(...score.notes.map((n) => n.id))
+            : -1;
+        const barLine = {
+          id: maxId + 1,
+          value: "bar",
+          octave: 0,
+          duration: 0,
+          dotted: false,
+          ban: 0,
+          yan: 0,
+          lineBreak: false,
+        };
+        newNotes.push(barLine);
+
+        // 重置累计拍数
+        currentBeat = 0;
+      }
+    }
+  }
+
+  // 更新乐谱
+  score.notes = newNotes;
+}
+
 // 加载乐谱
 let score: Score = JSON.parse(JSON.stringify(testScore));
 let history: Score[] = [JSON.parse(JSON.stringify(score))];
@@ -404,6 +454,10 @@ function updateNote(id: number, updates: Partial<Note>): void {
   if (!note) return;
   saveHistory();
   Object.assign(note, updates);
+  
+  // 自动添加小节线
+  autoAddBarLines();
+  
   render();
   setStatus(`已更新音符 ${id}`);
 }
@@ -415,6 +469,10 @@ function deleteNote(id: number): void {
   saveHistory();
   score.notes.splice(index, 1);
   if (selectedNoteId === id) selectedNoteId = null;
+  
+  // 自动添加小节线
+  autoAddBarLines();
+  
   render();
   setStatus("已删除音符");
 }
@@ -442,6 +500,10 @@ function addNote(note: Omit<Note, "id">, insertAfterId?: number): void {
   if (note.value !== "bar") {
     lastDuration = note.duration;
   }
+  
+  // 自动添加小节线
+  autoAddBarLines();
+  
   render();
   setStatus(`已添加音符 ${note.value} (时值: ${lastDuration}拍)`);
 }
@@ -478,6 +540,7 @@ async function exportMidi(): Promise<void> {
 }
 
 // 初始化
+autoAddBarLines();
 render();
 setStatus("就绪 - 点击音符可编辑");
 

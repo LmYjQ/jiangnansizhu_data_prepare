@@ -61,7 +61,7 @@ export interface RenderConfig {
 export const DEFAULT_CONFIG: RenderConfig = {
   noteFontSize: 24,
   lineSpacing: 80,
-  noteSpacing: 40,
+  noteSpacing: 20,
   beatLineHeight: 20,
   dotRadius: 3,
   octaveDotOffset: 12,
