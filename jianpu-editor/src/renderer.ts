@@ -24,6 +24,17 @@ export class JianpuSVGRenderer {
     this.svgElement.setAttribute("xmlns", "http://www.w3.org/2000/svg");
     this.svgElement.style.width = "100%";
     this.svgElement.style.height = "100%";
+    this.svgElement.addEventListener(
+      "wheel",
+      (e) => {
+        // 只处理纵向滚动
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+          e.preventDefault(); // 阻止页面整体滚动
+          this.setScrollY(this.scrollY + e.deltaY);
+        }
+      },
+      { passive: false },
+    );
   }
 
   /**
@@ -37,13 +48,14 @@ export class JianpuSVGRenderer {
   /**
    * 设置纵向滚动位置
    */
- setScrollY(y: number): void {
-  this.scrollY = Math.max(0, y);
-  // 不再触发重新渲染，而是直接设置滚动位置
-  if (this.svgElement.parentElement) {
-    this.svgElement.parentElement.scrollTop = this.scrollY;
+  setScrollY(y: number): void {
+    const maxScroll = Math.max(
+      0,
+      this.getTotalHeight() - this.svgElement.clientHeight,
+    );
+    this.scrollY = Math.max(0, Math.min(y, maxScroll));
+    this.render();
   }
-}
 
   /**
    * 获取纵向滚动位置
@@ -55,13 +67,13 @@ export class JianpuSVGRenderer {
   /**
    * 设置横向滚动位置
    */
- setScrollX(x: number): void {
-  this.scrollX = Math.max(0, x);
-  // 不再触发重新渲染，而是直接设置滚动位置
-  if (this.svgElement.parentElement) {
-    this.svgElement.parentElement.scrollLeft = this.scrollX;
+  setScrollX(x: number): void {
+    this.scrollX = Math.max(0, x);
+    // 不再触发重新渲染，而是直接设置滚动位置
+    if (this.svgElement.parentElement) {
+      this.svgElement.parentElement.scrollLeft = this.scrollX;
+    }
   }
-}
 
   /**
    * 获取横向滚动位置
@@ -369,121 +381,120 @@ export class JianpuSVGRenderer {
     return this.noteInfos[this.noteInfos.length - 1];
   }
 
-/**
- * 计算每行能容纳的音符数
- */
-private getNotesPerRow(): number {
-  // 获取SVG父容器的宽度，而不是SVG元素本身的宽度
-  const parentElement = this.svgElement.parentElement;
-  if (!parentElement) return 10; // 默认值
+  /**
+   * 计算每行能容纳的音符数
+   */
+  private getNotesPerRow(): number {
+    // 获取SVG父容器的宽度，而不是SVG元素本身的宽度
+    const parentElement = this.svgElement.parentElement;
+    if (!parentElement) return 10; // 默认值
 
-  const containerWidth = parentElement.clientWidth;
-  const availableWidth = containerWidth - 80; // 减去左右边距
-  const notesPerRow = Math.floor(availableWidth / this.config.noteSpacing);
-  
-  console.log(`容器宽度: ${containerWidth}, 可用宽度: ${availableWidth}, 每行音符数: ${notesPerRow}`);
-  
-  return Math.max(1, notesPerRow); // 确保至少返回1
-}
+    const containerWidth = parentElement.clientWidth;
+    const availableWidth = containerWidth - 80; // 减去左右边距
+    const notesPerRow = Math.floor(availableWidth / this.config.noteSpacing);
 
-/**
- * 渲染整首乐谱
- */
-render(selectedNoteId: number | null = null): void {
-  if (!this.score) return;
+    console.log(
+      `容器宽度: ${containerWidth}, 可用宽度: ${availableWidth}, 每行音符数: ${notesPerRow}`,
+    );
 
-  // 清空SVG元素
-  while (this.svgElement.firstChild) {
-    this.svgElement.removeChild(this.svgElement.firstChild);
+    return Math.max(1, notesPerRow); // 确保至少返回1
   }
 
-  const { noteSpacing, lineSpacing } = this.config;
-  const startX = 50;
-  const notesPerRow = this.getNotesPerRow();
+  /**
+   * 渲染整首乐谱
+   */
+  render(selectedNoteId: number | null = null): void {
+    if (!this.score) return;
 
-  console.log(`每行可容纳音符数: ${notesPerRow}`);
-
-  // 重置音符信息
-  this.noteInfos = [];
-
-  let currentX = startX;
-  let currentRow = 0;
-  let noteIndex = 0;
-  let beatDuration = 0; // 当前拍的累计时长
-
-  // 获取父容器的宽度
-  const parentRect = this.svgElement.parentElement?.getBoundingClientRect();
-  const containerWidth = parentRect?.width || 1200;
-  const availableWidth = containerWidth - 100; // 减去左右边距
-
-  console.log(`容器宽度: ${containerWidth}, 可用宽度: ${availableWidth}`);
-
-  // 渲染每个音符
-  for (const note of this.score.notes) {
-    // 检查是否需要换行：当前音符位置加上音符宽度超过可用宽度
-    const noteWidth = noteSpacing;
-    const noteRightEdge = currentX + noteWidth / 2;
-    
-    // 如果音符的右边缘超过可用宽度，且不是第一个音符，则换行
-    if (noteRightEdge > availableWidth && currentX > startX) {
-      console.log(`音符 ${noteIndex} 触发换行，当前X: ${currentX}, 音符右边缘: ${noteRightEdge}`);
-      currentRow++;
-      currentX = startX;
-      beatDuration = 0; // 换行时重置拍时长
+    // 清空SVG元素
+    while (this.svgElement.firstChild) {
+      this.svgElement.removeChild(this.svgElement.firstChild);
     }
 
-    // 移除滚动偏移，让音符保持在固定位置
-    const rowY = lineSpacing * 0.5 + currentRow * lineSpacing;
-    const x = currentX;
+    const { noteSpacing, lineSpacing } = this.config;
+    const startX = 50;
+    const notesPerRow = this.getNotesPerRow();
 
-    // 渲染音符（统一调用renderNote处理所有类型）
-    this.renderNote(note, x, rowY, currentRow);
+    console.log(`每行可容纳音符数: ${notesPerRow}`);
 
-    // 更新拍时长（只计算音符和空格，不计算小节线）
-    if (note.value !== "bar") {
-      beatDuration += note.duration;
+    // 重置音符信息
+    this.noteInfos = [];
 
-      // 如果拍时长达到或超过1，添加额外间距
-      if (beatDuration >= 1) {
-        currentX += noteSpacing * 0.5; // 添加半倍间距
-        beatDuration = 0; // 重置拍时长
+    let currentX = startX;
+    let currentRow = 0;
+    let noteIndex = 0;
+    let beatDuration = 0; // 当前拍的累计时长
+
+    // 获取父容器的宽度
+    const parentRect = this.svgElement.parentElement?.getBoundingClientRect();
+    const containerWidth = parentRect?.width || 1200;
+    const availableWidth = containerWidth - 100; // 减去左右边距
+
+    console.log(`容器宽度: ${containerWidth}, 可用宽度: ${availableWidth}`);
+
+    // 渲染每个音符
+    for (const note of this.score.notes) {
+      // 检查是否需要换行：当前音符位置加上音符宽度超过可用宽度
+      const noteWidth = noteSpacing;
+      const noteRightEdge = currentX + noteWidth / 2;
+
+      // 如果音符的右边缘超过可用宽度，且不是第一个音符，则换行
+      if (noteRightEdge > availableWidth && currentX > startX) {
+        console.log(
+          `音符 ${noteIndex} 触发换行，当前X: ${currentX}, 音符右边缘: ${noteRightEdge}`,
+        );
+        currentRow++;
+        currentX = startX;
+        beatDuration = 0; // 换行时重置拍时长
       }
+
+      // 移除滚动偏移，让音符保持在固定位置
+      const rowY = lineSpacing * 0.5 + currentRow * lineSpacing - this.scrollY;
+      const x = currentX;
+
+      // 渲染音符（统一调用renderNote处理所有类型）
+      this.renderNote(note, x, rowY, currentRow);
+
+      // 更新拍时长（只计算音符和空格，不计算小节线）
+      if (note.value !== "bar") {
+        beatDuration += note.duration;
+
+        // 如果拍时长达到或超过1，添加额外间距
+        if (beatDuration >= 1) {
+          currentX += noteSpacing * 0.5; // 添加半倍间距
+          beatDuration = 0; // 重置拍时长
+        }
+      }
+
+      currentX += noteSpacing;
+      noteIndex++;
     }
 
-    currentX += noteSpacing;
-    noteIndex++;
+    // 计算实际需要的尺寸
+    // 宽度：设置为100%，让它自适应外部div
+    // 高度：根据实际行数计算，确保能够显示所有内容
+    const totalHeight = Math.max(
+      lineSpacing,
+      (currentRow + 1) * lineSpacing + 50,
+    );
+
+    console.log(
+      `SVG总尺寸: 宽度=100%, 高度=${totalHeight}, 总行数=${currentRow + 1}`,
+    );
+
+    // 设置SVG的尺寸属性
+    this.svgElement.setAttribute("width", "100%");
+    this.svgElement.setAttribute("height", "100%");
+
+    // 同时设置样式，确保SVG元素能够正确显示
+    this.svgElement.style.width = "100%";
+    this.svgElement.style.height = "100%";
+
+    // 如果有选中的音符，高亮显示
+    if (selectedNoteId !== null) {
+      this.selectNote(selectedNoteId);
+    }
   }
-
-  // 计算实际需要的尺寸
-  // 宽度：设置为100%，让它自适应外部div
-  // 高度：根据实际行数计算，确保能够显示所有内容
-  const totalHeight = Math.max(
-    lineSpacing,
-    (currentRow + 1) * lineSpacing + 50,
-  );
-
-  console.log(
-    `SVG总尺寸: 宽度=100%, 高度=${totalHeight}, 总行数=${currentRow + 1}`,
-  );
-
-  // 设置SVG的尺寸属性
-  this.svgElement.setAttribute("width", "100%");
-  this.svgElement.setAttribute("height", totalHeight.toString());
-
-  // 同时设置样式，确保SVG元素能够正确显示
-  this.svgElement.style.width = "100%";
-  this.svgElement.style.height = `${totalHeight}px`;
-
-  // 如果有选中的音符，高亮显示
-  if (selectedNoteId !== null) {
-    this.selectNote(selectedNoteId);
-  }
-}
-
-
-
-
-
 
   /**
    * 选择音符
