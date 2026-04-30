@@ -140,9 +140,6 @@ const testScore: Score = {
     //   yan: 0,
     //   lineBreak: false,
     // },
-
-
-   
   ],
 };
 
@@ -403,13 +400,14 @@ function addNote(note: Omit<Note, "id">, insertAfterId?: number): void {
 // 清空
 function clear(): void {
   console.log("clear");
-  if (confirm("确定要清空所有音符吗？")) {
-    // saveHistory();
-    score.notes = [];
-    selectedNoteId = null;
-    render();
+  // if (confirm("确定要清空所有音符吗？")) {
+    saveHistory(); // 取消注释：清空操作也保存到历史，支持撤销
+    score.notes = []; // 清空所有音符
+    selectedNoteId = null; // 重置选中状态
+    autoAddBarLines(); // 虽然是空的，但确保没有遗留的小节线
+    render(); // 重新渲染
     setStatus("已清空");
-  }
+  // }
 }
 
 // 导出JSON
@@ -631,4 +629,3 @@ btnPageDown?.addEventListener("click", () => {
   render();
   if (selectedNoteId !== null) setStatus(`已选择音符 ID:${selectedNoteId}`);
 });
-

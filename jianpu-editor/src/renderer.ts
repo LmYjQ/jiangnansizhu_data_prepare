@@ -86,16 +86,20 @@ export class JianpuSVGRenderer {
    * 获取总高度（用于滚动计算）
    */
   getTotalHeight(): number {
-    if (!this.score || this.score.notes.length === 0) return 500; // 默认高度
+    if (!this.score || this.score.notes.length === 0) return 500;
     const notesPerRow = this.getNotesPerRow();
-    // 计算总行数（含手动分页符产生的额外行）
+
+    // 重新计算总行数，确保准确
     let totalRows = 1;
     for (let i = 0; i < this.score.notes.length; i++) {
       if ((i > 0 && i % notesPerRow === 0) || this.score.notes[i].lineBreak) {
         totalRows++;
       }
     }
-    return totalRows * this.config.lineSpacing;
+
+    // 关键修复：增加底部边距，确保最后一行完全可见
+    // 原来的计算少了底部留白，导致最后一行被截断
+    return totalRows * this.config.lineSpacing + 100;
   }
 
   /**
