@@ -9,6 +9,10 @@ const svgElement = document.getElementById("score-svg") as SVGSVGElement;
 const titleInput = document.getElementById("title-input") as HTMLInputElement;
 const tempoInput = document.getElementById("tempo-input") as HTMLInputElement;
 const beatsInput = document.getElementById("beats-input") as HTMLInputElement;
+const durationInput = document.getElementById(
+  "duration-input",
+) as HTMLSelectElement;
+
 const statusMsg = document.getElementById("status-msg") as HTMLElement;
 const noteEditing = document.getElementById("note-editing") as HTMLElement;
 const pageInfo = document.getElementById("page-info") as HTMLElement;
@@ -124,146 +128,146 @@ const testScore: Score = {
   tempo: 60,
   beatsPerBar: 4,
   notes: [
-    {
-      id: 0,
-      value: "1",
-      octave: 0,
-      duration: 1,
-      dotted: false,
-      ban: 0,
-      yan: 0,
-      lineBreak: false,
-    },
-    {
-      id: 1,
-      value: "2",
-      octave: 0,
-      duration: 1,
-      dotted: false,
-      ban: 0,
-      yan: 0,
-      lineBreak: false,
-    },
-    {
-      id: 2,
-      value: "3",
-      octave: 0,
-      duration: 1,
-      dotted: false,
-      ban: 0,
-      yan: 0,
-      lineBreak: false,
-    },
-    {
-      id: 3,
-      value: "1",
-      octave: 0,
-      duration: 1,
-      dotted: false,
-      ban: 0,
-      yan: 0,
-      lineBreak: false,
-    },
-    {
-      id: 4,
-      value: "bar",
-      octave: 0,
-      duration: 0,
-      dotted: false,
-      ban: 0,
-      yan: 0,
-      lineBreak: false,
-    },
-    {
-      id: 5,
-      value: "5",
-      octave: 0,
-      duration: 1,
-      dotted: false,
-      ban: 0,
-      yan: 0,
-      lineBreak: false,
-    },
-    {
-      id: 6,
-      value: "5",
-      octave: 0,
-      duration: 0.5,
-      dotted: true,
-      ban: 0,
-      yan: 0,
-      lineBreak: false,
-    },
-    {
-      id: 7,
-      value: "6",
-      octave: 0,
-      duration: 0.5,
-      dotted: false,
-      ban: 0,
-      yan: 0,
-      lineBreak: false,
-    },
-    {
-      id: 8,
-      value: "bar",
-      octave: 0,
-      duration: 0,
-      dotted: false,
-      ban: 0,
-      yan: 0,
-      lineBreak: false,
-    },
-    {
-      id: 9,
-      value: "1",
-      octave: 1,
-      duration: 1,
-      dotted: false,
-      ban: 0,
-      yan: 0,
-      lineBreak: false,
-    },
-    {
-      id: 10,
-      value: "1",
-      octave: -1,
-      duration: 1,
-      dotted: false,
-      ban: 0,
-      yan: 0,
-      lineBreak: false,
-    },
-    {
-      id: 11,
-      value: "space",
-      octave: 0,
-      duration: 0.5,
-      dotted: false,
-      ban: 0,
-      yan: 0,
-      lineBreak: false,
-    },
-    {
-      id: 12,
-      value: "2",
-      octave: 0,
-      duration: 0.25,
-      dotted: false,
-      ban: 0,
-      yan: 0,
-      lineBreak: false,
-    },
-    {
-      id: 13,
-      value: "3",
-      octave: 0,
-      duration: 0.125,
-      dotted: false,
-      ban: 0,
-      yan: 0,
-      lineBreak: false,
-    },
+    // {
+    //   id: 0,
+    //   value: "1",
+    //   octave: 0,
+    //   duration: 1,
+    //   dotted: false,
+    //   ban: 0,
+    //   yan: 0,
+    //   lineBreak: false,
+    // },
+    // {
+    //   id: 1,
+    //   value: "2",
+    //   octave: 0,
+    //   duration: 1,
+    //   dotted: false,
+    //   ban: 0,
+    //   yan: 0,
+    //   lineBreak: false,
+    // },
+    // {
+    //   id: 2,
+    //   value: "3",
+    //   octave: 0,
+    //   duration: 1,
+    //   dotted: false,
+    //   ban: 0,
+    //   yan: 0,
+    //   lineBreak: false,
+    // },
+    // {
+    //   id: 3,
+    //   value: "1",
+    //   octave: 0,
+    //   duration: 1,
+    //   dotted: false,
+    //   ban: 0,
+    //   yan: 0,
+    //   lineBreak: false,
+    // },
+    // {
+    //   id: 4,
+    //   value: "bar",
+    //   octave: 0,
+    //   duration: 0,
+    //   dotted: false,
+    //   ban: 0,
+    //   yan: 0,
+    //   lineBreak: false,
+    // },
+    // {
+    //   id: 5,
+    //   value: "5",
+    //   octave: 0,
+    //   duration: 1,
+    //   dotted: false,
+    //   ban: 0,
+    //   yan: 0,
+    //   lineBreak: false,
+    // },
+    // {
+    //   id: 6,
+    //   value: "5",
+    //   octave: 0,
+    //   duration: 0.5,
+    //   dotted: true,
+    //   ban: 0,
+    //   yan: 0,
+    //   lineBreak: false,
+    // },
+    // {
+    //   id: 7,
+    //   value: "6",
+    //   octave: 0,
+    //   duration: 0.5,
+    //   dotted: false,
+    //   ban: 0,
+    //   yan: 0,
+    //   lineBreak: false,
+    // },
+    // {
+    //   id: 8,
+    //   value: "bar",
+    //   octave: 0,
+    //   duration: 0,
+    //   dotted: false,
+    //   ban: 0,
+    //   yan: 0,
+    //   lineBreak: false,
+    // },
+    // {
+    //   id: 9,
+    //   value: "1",
+    //   octave: 1,
+    //   duration: 1,
+    //   dotted: false,
+    //   ban: 0,
+    //   yan: 0,
+    //   lineBreak: false,
+    // },
+    // {
+    //   id: 10,
+    //   value: "1",
+    //   octave: -1,
+    //   duration: 1,
+    //   dotted: false,
+    //   ban: 0,
+    //   yan: 0,
+    //   lineBreak: false,
+    // },
+    // {
+    //   id: 11,
+    //   value: "space",
+    //   octave: 0,
+    //   duration: 0.5,
+    //   dotted: false,
+    //   ban: 0,
+    //   yan: 0,
+    //   lineBreak: false,
+    // },
+    // {
+    //   id: 12,
+    //   value: "2",
+    //   octave: 0,
+    //   duration: 0.25,
+    //   dotted: false,
+    //   ban: 0,
+    //   yan: 0,
+    //   lineBreak: false,
+    // },
+    // {
+    //   id: 13,
+    //   value: "3",
+    //   octave: 0,
+    //   duration: 0.125,
+    //   dotted: false,
+    //   ban: 0,
+    //   yan: 0,
+    //   lineBreak: false,
+    // },
   ],
 };
 
@@ -454,10 +458,10 @@ function updateNote(id: number, updates: Partial<Note>): void {
   if (!note) return;
   saveHistory();
   Object.assign(note, updates);
-  
+
   // 自动添加小节线
   autoAddBarLines();
-  
+
   render();
   setStatus(`已更新音符 ${id}`);
 }
@@ -469,10 +473,10 @@ function deleteNote(id: number): void {
   saveHistory();
   score.notes.splice(index, 1);
   if (selectedNoteId === id) selectedNoteId = null;
-  
+
   // 自动添加小节线
   autoAddBarLines();
-  
+
   render();
   setStatus("已删除音符");
 }
@@ -500,10 +504,10 @@ function addNote(note: Omit<Note, "id">, insertAfterId?: number): void {
   if (note.value !== "bar") {
     lastDuration = note.duration;
   }
-  
+
   // 自动添加小节线
   autoAddBarLines();
-  
+
   render();
   setStatus(`已添加音符 ${note.value} (时值: ${lastDuration}拍)`);
 }
@@ -544,43 +548,6 @@ autoAddBarLines();
 render();
 setStatus("就绪 - 点击音符可编辑");
 
-// 工具栏事件
-document.getElementById("btn-add-note")?.addEventListener("click", () => {
-  addNote({
-    value: "1",
-    octave: 0,
-    duration: 1,
-    dotted: false,
-    ban: 0,
-    yan: 0,
-    lineBreak: false,
-  });
-});
-
-document.getElementById("btn-add-bar")?.addEventListener("click", () => {
-  addNote({
-    value: "bar",
-    octave: 0,
-    duration: 0,
-    dotted: false,
-    ban: 0,
-    yan: 0,
-    lineBreak: false,
-  });
-});
-
-document.getElementById("btn-add-space")?.addEventListener("click", () => {
-  addNote({
-    value: "space",
-    octave: 0,
-    duration: 0.5,
-    dotted: false,
-    ban: 0,
-    yan: 0,
-    lineBreak: false,
-  });
-});
-
 // 模式切换
 document.getElementById("btn-mode")?.addEventListener("click", () => {
   editMode = editMode === "edit" ? "select" : "edit";
@@ -609,6 +576,12 @@ document
 // MIDI输入按钮
 document.getElementById("btn-midi-in")?.addEventListener("click", () => {
   initMidi();
+});
+
+// 添加时值输入变更事件
+durationInput?.addEventListener("change", () => {
+  lastDuration = parseFloat(durationInput.value);
+  setStatus(`已设定时值为 ${lastDuration} 拍`);
 });
 
 // 曲名/速度/拍数变更
@@ -665,23 +638,6 @@ window.addEventListener("keydown", (e) => {
       e.preventDefault();
       return;
     }
-    // 空格键输入空格（插入到选中音符后面）
-    if (e.key === " " || e.key === "space") {
-      addNote(
-        {
-          value: "space",
-          octave: 0,
-          duration: lastDuration,
-          dotted: false,
-          ban: 0,
-          yan: 0,
-          lineBreak: false,
-        },
-        selectedNoteId ?? undefined,
-      );
-      e.preventDefault();
-      return;
-    }
     // b键切换板（需选中音符）
     if (e.key === "b" && selectedNoteId !== null) {
       const note = score.notes.find((n) => n.id === selectedNoteId);
@@ -691,22 +647,7 @@ window.addEventListener("keydown", (e) => {
       e.preventDefault();
       return;
     }
-    // x键输入小节线
-    if (e.key === "x") {
-      if (selectedNoteId === null) {
-        addNote({
-          value: "bar",
-          octave: 0,
-          duration: 0,
-          dotted: false,
-          ban: 0,
-          yan: 0,
-          lineBreak: false,
-        });
-        e.preventDefault();
-        return;
-      }
-    }
+
     // y键切换眼（需要选中音符）
     if (e.key === "y" && selectedNoteId !== null) {
       const note = score.notes.find((n) => n.id === selectedNoteId);
