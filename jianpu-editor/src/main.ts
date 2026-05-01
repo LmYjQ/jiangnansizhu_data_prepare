@@ -1,3 +1,4 @@
+// jianpu-editor/src/main.ts
 import { Note, Score } from "./types";
 import { JianpuSVGRenderer } from "./renderer";
 import { MidiExporter } from "./midi";
@@ -244,20 +245,34 @@ function addNote(note: Omit<Note, "id">, insertAfterId?: number): void {
     score.notes.length > 0 ? Math.max(...score.notes.map((n) => n.id)) : -1;
   const newNote = { ...note, id: maxId + 1 };
 
-  if (insertAfterId !== undefined) {
+  // 获取光标位置
+  const cursorPosition = renderer.getCursorPosition();
+  let insertIdx: number;
+
+  if (cursorPosition) {
+    // 如果有光标位置，在光标位置插入音符
+    insertIdx = cursorPosition.index;
+  } else if (insertAfterId !== undefined) {
+    // 如果指定了插入位置，在指定位置后插入
     const idx = score.notes.findIndex((n) => n.id === insertAfterId);
-    idx !== -1
-      ? score.notes.splice(idx + 1, 0, newNote)
-      : score.notes.push(newNote);
+    insertIdx = idx !== -1 ? idx + 1 : score.notes.length;
   } else {
-    score.notes.push(newNote);
+    // 否则在末尾插入
+    insertIdx = score.notes.length;
   }
+
+  // 在指定位置插入音符
+  score.notes.splice(insertIdx, 0, newNote);
 
   if (note.value !== "bar") {
     lastDuration = note.duration;
   }
   autoAddBarLines();
   render();
+  
+  // 更新光标位置到新插入的音符后面
+  renderer.setCursorPosition(insertIdx + 1);
+  
   setStatus(`已添加音符 ${note.value} (时值: ${lastDuration}拍)`);
 }
 
@@ -485,11 +500,20 @@ function pasteCopiedNotes(): void {
   }
   saveHistory();
 
-  // 计算插入位置
-  let insertIdx = score.notes.length;
-  if (selectedNoteId !== null) {
+  // 获取光标位置
+  const cursorPosition = renderer.getCursorPosition();
+  let insertIdx: number;
+
+  if (cursorPosition) {
+    // 如果有光标位置，在光标位置粘贴音符
+    insertIdx = cursorPosition.index;
+  } else if (selectedNoteId !== null) {
+    // 如果有选中的音符，在选中的音符后粘贴
     const idx = score.notes.findIndex((n) => n.id === selectedNoteId);
-    if (idx !== -1) insertIdx = idx + 1;
+    insertIdx = idx !== -1 ? idx + 1 : score.notes.length;
+  } else {
+    // 否则在末尾粘贴
+    insertIdx = score.notes.length;
   }
 
   // 生成全新不重复的ID
@@ -505,6 +529,10 @@ function pasteCopiedNotes(): void {
   autoAddBarLines();
   selectionManager.clearSelection();
   render();
+  
+  // 更新光标位置到最后一个粘贴的音符后面
+  renderer.setCursorPosition(insertIdx + newNotes.length);
+  
   setStatus(`已粘贴 ${newNotes.length} 个音符`);
 }
 
@@ -581,7 +609,7 @@ async function initMidi(): Promise<void> {
           yan: 0,
           lineBreak: false,
         },
-        selectedNoteId ?? undefined,
+        undefined, // 不指定插入位置，使用光标位置
       );
     });
 
@@ -638,8 +666,34 @@ svgElement.addEventListener(
     selectedNoteId = clickNoteId;
     selectionManager.setSelectedNoteId(selectedNoteId);
     renderer.selectNote(selectedNoteId);
+    renderer.setCursorAtNote(selectedNoteId);
     updateNotePanel();
     setStatus(`已选择音符 ID:${selectedNoteId}, 时值: ${score.notes.find((n) => n.id === selectedNoteId)?.duration || 0}拍`);
+  },
+  { capture: true },
+);
+
+// ========== SVG点击事件（用于设置光标位置） ==========
+svgElement.addEventListener(
+  "click",
+  (e) => {
+    // 如果是音符点击事件，不处理
+    if (e.type === "note-click") return;
+    
+    // 获取SVG坐标
+    const svgPoint = svgElement.createSVGPoint();
+    svgPoint.x = e.clientX;
+    svgPoint.y = e.clientY;
+    const svgCoords = svgPoint.matrixTransform(
+      svgElement.getScreenCTM()!.inverse(),
+    );
+    
+    // 查找点击位置所在的行
+    const { lineSpacing } = renderer["config"];
+    const row = Math.floor((svgCoords.y + renderer["scrollY"]) / lineSpacing);
+    
+    // 设置光标位置
+    renderer.setCursorAtPosition(svgCoords.x, svgCoords.y, row);
   },
   { capture: true },
 );
@@ -710,7 +764,7 @@ window.addEventListener("keydown", (e) => {
           yan: 0,
           lineBreak: false,
         },
-        selectedNoteId ?? undefined,
+        undefined, // 不指定插入位置，使用光标位置
       );
       e.preventDefault();
       return;
@@ -736,6 +790,21 @@ window.addEventListener("keydown", (e) => {
     }
   }
 
+  // 方向键移动光标
+  const cursorPosition = renderer.getCursorPosition();
+  if (cursorPosition) {
+    if (e.key === "ArrowRight") {
+      renderer.setCursorPosition(cursorPosition.index + 1);
+      e.preventDefault();
+      return;
+    }
+    if (e.key === "ArrowLeft") {
+      renderer.setCursorPosition(cursorPosition.index - 1);
+      e.preventDefault();
+      return;
+    }
+  }
+
   if (selectedNoteId === null) return;
 
   // 选择模式：方向键切换音符
@@ -745,6 +814,7 @@ window.addEventListener("keydown", (e) => {
       selectedNoteId = allNoteIds[currentIdx + 1];
       selectionManager.clearSelection();
       renderer.selectNote(selectedNoteId);
+      renderer.setCursorAtNote(selectedNoteId);
       updateNotePanel();
       setStatus(`已选择音符 ID:${selectedNoteId}`);
       e.preventDefault();
@@ -753,6 +823,7 @@ window.addEventListener("keydown", (e) => {
       selectedNoteId = allNoteIds[currentIdx - 1];
       selectionManager.clearSelection();
       renderer.selectNote(selectedNoteId);
+      renderer.setCursorAtNote(selectedNoteId);
       updateNotePanel();
       setStatus(`已选择音符 ID:${selectedNoteId}`);
       e.preventDefault();

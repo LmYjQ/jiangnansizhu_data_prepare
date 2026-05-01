@@ -1,3 +1,4 @@
+// jianpu-editor/src/renderer.ts
 import {
   Note,
   NoteRenderInfo,
@@ -20,6 +21,17 @@ export class JianpuSVGRenderer {
   // 内部选中状态管理
   private selectedNoteId: number | null = null;
   private multiSelectedIds: number[] = [];
+  
+  // 光标相关属性
+  private cursorElement: SVGLineElement | null = null;
+  private cursorVisible: boolean = true;
+  private cursorBlinkInterval: number | null = null;
+  private cursorPosition: { 
+    index: number; 
+    x: number; 
+    y: number; 
+    row: number;
+  } | null = null;
 
   constructor(svgElement: SVGSVGElement, config: Partial<RenderConfig> = {}) {
     this.svgElement = svgElement;
@@ -37,11 +49,185 @@ export class JianpuSVGRenderer {
       },
       { passive: false },
     );
+    
+    // 初始化光标
+    this.initCursor();
   }
 
   loadScore(score: Score): void {
     this.score = score;
     this.noteInfos = [];
+    // 重置光标位置到开头
+    this.setCursorPosition(0);
+  }
+
+  // ======================
+  // 光标方法
+  // ======================
+  private initCursor(): void {
+    // 如果光标元素已存在，不再重复创建
+    if (this.cursorElement) return;
+    
+    // 创建光标元素
+    this.cursorElement = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "line"
+    );
+    this.cursorElement.setAttribute("stroke", "#4285f4");
+    this.cursorElement.setAttribute("stroke-width", "2");
+    this.cursorElement.setAttribute("stroke-linecap", "round");
+    this.cursorElement.style.display = "none";
+    this.svgElement.appendChild(this.cursorElement);
+    
+    // 启动光标闪烁
+    this.startCursorBlinking();
+  }
+
+  private startCursorBlinking(): void {
+    if (this.cursorBlinkInterval !== null) {
+      clearInterval(this.cursorBlinkInterval);
+    }
+    
+    this.cursorBlinkInterval = window.setInterval(() => {
+      if (!this.cursorElement) return;
+      this.cursorVisible = !this.cursorVisible;
+      this.cursorElement.style.opacity = this.cursorVisible ? "1" : "0";
+    }, 500); // 每500毫秒切换一次可见性
+  }
+
+  private stopCursorBlinking(): void {
+    if (this.cursorBlinkInterval !== null) {
+      clearInterval(this.cursorBlinkInterval);
+      this.cursorBlinkInterval = null;
+    }
+  }
+
+  private updateCursorPosition(x: number, y: number, row: number, index: number): void {
+    this.cursorPosition = { index, x, y, row };
+    
+    if (!this.cursorElement) return;
+    
+    const { lineSpacing } = this.config;
+    const cursorHeight = lineSpacing * 0.8;
+    
+    this.cursorElement.setAttribute("x1", x.toString());
+    this.cursorElement.setAttribute("y1", (y - cursorHeight / 2).toString());
+    this.cursorElement.setAttribute("x2", x.toString());
+    this.cursorElement.setAttribute("y2", (y + cursorHeight / 2).toString());
+    this.cursorElement.style.display = "block";
+    
+    // 确保光标可见
+    this.cursorVisible = true;
+    if (this.cursorElement) {
+      this.cursorElement.style.opacity = "1";
+    }
+  }
+
+  // 设置光标位置到指定索引
+  setCursorPosition(index: number): void {
+    if (!this.score || index < 0 || index > this.score.notes.length) {
+      return;
+    }
+    
+    const { noteSpacing, lineSpacing } = this.config;
+    const startX = 50;
+    
+    // 计算光标位置
+    if (index === 0) {
+      // 光标在开头
+      this.updateCursorPosition(startX, lineSpacing * 0.5, 0, 0);
+    } else if (index === this.score.notes.length) {
+      // 光标在末尾
+      if (this.noteInfos.length > 0) {
+        const lastNote = this.noteInfos[this.noteInfos.length - 1];
+        const cursorX = lastNote.x + noteSpacing;
+        const cursorY = lastNote.y + lastNote.height / 2;
+        this.updateCursorPosition(cursorX, cursorY, lastNote.row, index);
+      } else {
+        // 没有音符，光标在开头
+        this.updateCursorPosition(startX, lineSpacing * 0.5, 0, 0);
+      }
+    } else {
+      // 光标在音符之间
+      const noteInfo = this.noteInfos[index - 1];
+      const cursorX = noteInfo.x + noteSpacing;
+      const cursorY = noteInfo.y + noteInfo.height / 2;
+      this.updateCursorPosition(cursorX, cursorY, noteInfo.row, index);
+    }
+  }
+
+  // 获取光标位置
+  getCursorPosition(): { 
+    index: number; 
+    x: number; 
+    y: number; 
+    row: number;
+  } | null {
+    return this.cursorPosition;
+  }
+
+  setCursorAtNote(noteId: number): void {
+    const noteIndex = this.score?.notes.findIndex((n) => n.id === noteId);
+    if (noteIndex === undefined || noteIndex === -1) return;
+    
+    // 光标位置在音符右侧
+    this.setCursorPosition(noteIndex + 1);
+  }
+
+  setCursorAtPosition(x: number, y: number, row: number): void {
+    // 根据鼠标位置确定光标应该放在哪个音符之间
+    let closestIndex = 0;
+    let minDistance = Infinity;
+    
+    for (let i = 0; i <= this.noteInfos.length; i++) {
+      let targetX: number;
+      let targetY: number;
+      
+      if (i === 0) {
+        // 开头位置
+        const { noteSpacing, lineSpacing } = this.config;
+        targetX = 50;
+        targetY = lineSpacing * 0.5;
+      } else if (i === this.noteInfos.length) {
+        // 末尾位置
+        const lastNote = this.noteInfos[i - 1];
+        targetX = lastNote.x + this.config.noteSpacing;
+        targetY = lastNote.y + lastNote.height / 2;
+      } else {
+        // 音符之间
+        const noteInfo = this.noteInfos[i - 1];
+        targetX = noteInfo.x + this.config.noteSpacing;
+        targetY = noteInfo.y + noteInfo.height / 2;
+      }
+      
+      // 计算距离
+      const distance = Math.sqrt(Math.pow(x - targetX, 2) + Math.pow(y - targetY, 2));
+      
+      // 如果在同一行且距离更近，则更新最近索引
+      const noteRow = i === 0 ? 0 : (i === this.noteInfos.length ? 
+        this.noteInfos[i - 1].row : this.noteInfos[i].row);
+      
+      if (noteRow === row && distance < minDistance) {
+        minDistance = distance;
+        closestIndex = i;
+      }
+    }
+    
+    this.setCursorPosition(closestIndex);
+  }
+
+  hideCursor(): void {
+    if (this.cursorElement) {
+      this.cursorElement.style.display = "none";
+    }
+    this.stopCursorBlinking();
+  }
+
+  showCursor(): void {
+    if (this.cursorElement) {
+      this.cursorElement.style.display = "block";
+    }
+    this.startCursorBlinking();
   }
 
   // ======================
@@ -49,14 +235,10 @@ export class JianpuSVGRenderer {
   // ======================
   clearAllHighlight(): void {
     const all = this.svgElement.querySelectorAll(
-      ".note-group.selected, .note-single-selected, .note-batch-selected",
+      ".note-group.selected, .note-single-selected, .note-batch-selected"
     );
     all.forEach((el) => {
-      el.classList.remove(
-        "selected",
-        "note-single-selected",
-        "note-batch-selected",
-      );
+      el.classList.remove("selected", "note-single-selected", "note-batch-selected");
     });
   }
 
@@ -94,11 +276,10 @@ export class JianpuSVGRenderer {
   }
 
   setScrollY(y: number): void {
-    const viewHeight = this.svgElement.clientHeight || 600;
-    const totalHeight = this.getTotalHeight();
-
-    const maxScroll = Math.max(0, totalHeight - viewHeight + 200);
-
+    const maxScroll = Math.max(
+      0,
+      this.getTotalHeight() - this.svgElement.clientHeight,
+    );
     this.scrollY = Math.max(0, Math.min(y, maxScroll));
     this.render();
   }
@@ -119,8 +300,7 @@ export class JianpuSVGRenderer {
   }
 
   getTotalHeight(): number {
-    if (!this.score || this.score.notes.length === 0) return 800;
-
+    if (!this.score || this.score.notes.length === 0) return 500;
     const notesPerRow = this.getNotesPerRow();
     let totalRows = 1;
     for (let i = 0; i < this.score.notes.length; i++) {
@@ -128,8 +308,7 @@ export class JianpuSVGRenderer {
         totalRows++;
       }
     }
-
-    return totalRows * this.config.lineSpacing + 50;
+    return totalRows * this.config.lineSpacing + 200;
   }
 
   getTotalWidth(): number {
@@ -297,6 +476,7 @@ export class JianpuSVGRenderer {
           div.appendChild(line);
         }
       } else {
+        // 横线放在音符右侧
         for (let i = 0; i < beatLines; i++) {
           const line = document.createElement("div");
           line.style.position = "absolute";
@@ -304,7 +484,7 @@ export class JianpuSVGRenderer {
           line.style.height = "1.5px";
           line.style.backgroundColor = "#000";
           line.style.top = "50%";
-          line.style.left = `${50 + 12 + i * 8}px`;
+          line.style.left = `${16+ i * 8}px`;
           line.style.transform = "translateY(-50%)";
           div.appendChild(line);
         }
@@ -390,9 +570,16 @@ export class JianpuSVGRenderer {
   render(selectedNoteId: number | null = null): void {
     if (!this.score) return;
 
-    while (this.svgElement.firstChild) {
-      this.svgElement.removeChild(this.svgElement.firstChild);
-    }
+    // 清空SVG内容，但保留光标元素
+    const children = Array.from(this.svgElement.children);
+    children.forEach(child => {
+      if (child !== this.cursorElement) {
+        this.svgElement.removeChild(child);
+      }
+    });
+    
+    // 确保光标元素存在
+    this.initCursor();
 
     const { noteSpacing, lineSpacing } = this.config;
     const startX = 50;
@@ -490,6 +677,14 @@ export class JianpuSVGRenderer {
 
     // 渲染完成后自动高亮
     this.highlightSelectedNotes();
+    
+    // 更新光标位置
+    if (this.cursorPosition) {
+      this.setCursorPosition(this.cursorPosition.index);
+    } else {
+      // 如果没有光标位置，默认显示在开头
+      this.setCursorPosition(0);
+    }
   }
 
   findNoteAt(mouseX: number, mouseY: number): NoteRenderInfo | null {
