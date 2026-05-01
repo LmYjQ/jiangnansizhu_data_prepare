@@ -249,3 +249,8 @@ h1 {
 .note-group.selected {
   background-color: #e0f7fa;
 }
+
+/* 批量选中音符：橙色高亮+发光 */
+.note-batch-selected {
+  border: 1px dotted #2e53fa !important;
+}
