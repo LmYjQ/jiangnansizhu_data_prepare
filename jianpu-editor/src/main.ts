@@ -338,7 +338,7 @@ function saveScore(isManual: boolean = false): void {
   try {
     const saveData = JSON.stringify(score);
     localStorage.setItem(STORAGE_KEY, saveData);
-    
+
     // 仅手动保存时显示提示
     if (isManual) {
       setStatus(`✅ 已成功保存: ${score.title || "简谱"}`);
@@ -418,16 +418,15 @@ function updateNote(id: number, updates: Partial<Note>): void {
   if (updates.type === 99) {
     note.duration = score.beatsPerBar || 4;
   } else {
-    const currentActualDuration = note.type || 0;
+    const currentActualDuration = updates.type || note.type || 0;
     note.duration = updates.dotted
       ? currentActualDuration * 1.5
       : currentActualDuration;
   }
   Object.assign(note, updates);
-
   autoAddBarLines();
   render();
-  setStatus(`已更新音符 ${id}`);
+  setStatus(`已更新音符 ${id}, 时值: ${note.duration}拍`);
 }
 
 // 删除音符
@@ -834,7 +833,7 @@ svgElement.addEventListener(
     renderer.selectNote(selectedNoteId);
     highlightSelectedNotes();
     updateNotePanel();
-    setStatus(`已选择音符 ID:${selectedNoteId}`);
+    setStatus(`已选择音符 ID:${selectedNoteId}, 时值: ${score.notes.find((n) => n.id === selectedNoteId)?.duration || 0}拍`);
   },
   { capture: true },
 );
