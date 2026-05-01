@@ -246,7 +246,7 @@ h1 {
   background-color: transparent;
 }
 
-.note-group.selected {
+.note-single-selected {
   background-color: #e0f7fa;
 }
 

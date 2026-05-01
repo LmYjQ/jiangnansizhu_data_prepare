@@ -17,6 +17,11 @@ jianpu-editor/
     ├── midi.ts        # MidiExporter 类（MIDI 导出）
     ├── types.ts       # 类型定义和数据结构
     └── styles.css     # 样式文件
+    └── component
+        ├── slection.ts    # 批量选择
+        ├── shortcuts.ts    # 快捷键操作
+        ├── history.ts    # 历史记录
+
 ```
 
 ## 核心模块
@@ -24,25 +29,27 @@ jianpu-editor/
 ### 1. types.ts — 数据结构
 
 **Note（音符）**
+
 ```typescript
 interface Note {
-  id: number;        // 唯一标识
-  value: string;     // 音符值: "1"-"7", "0"(休止), "bar"(小节线), "space"(空格)
-  octave: number;   // 八度调整，+1=高八度，-1=低八度
+  id: number; // 唯一标识
+  value: string; // 音符值: "1"-"7", "0"(休止), "bar"(小节线), "space"(空格)
+  octave: number; // 八度调整，+1=高八度，-1=低八度
   duration: number; // 时值，四分音符=1
-  dotted: boolean;   // 是否附点
-  ban: number;      // 板眼：板=强拍 (0/1)
-  yan: number;      // 板眼：眼=弱拍 (0/1)
+  dotted: boolean; // 是否附点
+  ban: number; // 板眼：板=强拍 (0/1)
+  yan: number; // 板眼：眼=弱拍 (0/1)
 }
 ```
 
 **Score（乐谱）**
+
 ```typescript
 interface Score {
-  title: string;       // 曲名
-  tempo: number;       // 速度（BPM）
+  title: string; // 曲名
+  tempo: number; // 速度（BPM）
   beatsPerBar: number; // 每小节拍数
-  notes: Note[];       // 音符列表
+  notes: Note[]; // 音符列表
 }
 ```
 
@@ -78,22 +85,23 @@ interface Score {
 
 **快捷键一览**：
 
-| 按键 | 功能 |
-|------|------|
-| `0-7` | 插入音符（编辑模式） |
-| `空格` | 插入空格 |
-| `x` | 插入小节线 |
-| `.` | 切换附点（需选中音符） |
-| `b` | 切换板 / 插入小节线 |
-| `y` | 切换眼 |
-| `↑/↓` | 调整八度（编辑模式） |
-| `←/→` | 调整时值（编辑模式） |
-| `Shift+滚轮` | 横向滚动 |
-| `Ctrl+Z` | 撤销 |
-| `Ctrl+Y` | 重做 |
-| `Delete` | 删除选中音符 |
+| 按键         | 功能                   |
+| ------------ | ---------------------- |
+| `0-7`        | 插入音符（编辑模式）   |
+| `空格`       | 插入空格               |
+| `x`          | 插入小节线             |
+| `.`          | 切换附点（需选中音符） |
+| `b`          | 切换板 / 插入小节线    |
+| `y`          | 切换眼                 |
+| `↑/↓`        | 调整八度（编辑模式）   |
+| `←/→`        | 调整时值（编辑模式）   |
+| `Shift+滚轮` | 横向滚动               |
+| `Ctrl+Z`     | 撤销                   |
+| `Ctrl+Y`     | 重做                   |
+| `Delete`     | 删除选中音符           |
 
 **编辑模式 vs 选择模式**：
+
 - **编辑模式**：方向键调整选中音符的属性
 - **选择模式**：方向键切换选中音符
 

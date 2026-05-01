@@ -17,6 +17,10 @@ export class JianpuSVGRenderer {
   private scrollX: number = 0;
   private scrollY: number = 0;
 
+  // 内部选中状态管理
+  private selectedNoteId: number | null = null;
+  private multiSelectedIds: number[] = [];
+
   constructor(svgElement: SVGSVGElement, config: Partial<RenderConfig> = {}) {
     this.svgElement = svgElement;
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -38,6 +42,51 @@ export class JianpuSVGRenderer {
   loadScore(score: Score): void {
     this.score = score;
     this.noteInfos = [];
+  }
+
+  // ======================
+  // 高亮方法（移入内部）
+  // ======================
+  clearAllHighlight(): void {
+    const all = this.svgElement.querySelectorAll(
+      ".note-group.selected, .note-single-selected, .note-batch-selected"
+    );
+    all.forEach((el) => {
+      el.classList.remove("selected", "note-single-selected", "note-batch-selected");
+    });
+  }
+
+  highlightSelectedNotes(): void {
+    this.clearAllHighlight();
+
+    // 批量多选优先
+    if (this.multiSelectedIds.length > 0) {
+      this.multiSelectedIds.forEach((id) => {
+        const el = this.svgElement.getElementById(`note-${id}`);
+        if (el) el.classList.add("note-batch-selected");
+      });
+      return;
+    }
+
+    // 单选
+    if (this.selectedNoteId !== null) {
+      const el = this.svgElement.getElementById(`note-${this.selectedNoteId}`);
+      if (el) el.classList.add("note-single-selected");
+    }
+  }
+
+  // 设置单选
+  selectNote(noteId: number | null): void {
+    this.selectedNoteId = noteId;
+    this.multiSelectedIds = [];
+    this.highlightSelectedNotes();
+  }
+
+  // 设置批量多选
+  setMultiSelected(ids: number[]): void {
+    this.multiSelectedIds = [...ids];
+    this.selectedNoteId = null;
+    this.highlightSelectedNotes();
   }
 
   setScrollY(y: number): void {
@@ -331,14 +380,9 @@ export class JianpuSVGRenderer {
   /**
    * 渲染整首乐谱
    */
-
-  /**
-   * 渲染整首乐谱
-   */
   render(selectedNoteId: number | null = null): void {
     if (!this.score) return;
 
-    // 清空SVG元素
     while (this.svgElement.firstChild) {
       this.svgElement.removeChild(this.svgElement.firstChild);
     }
@@ -427,7 +471,6 @@ export class JianpuSVGRenderer {
       i = barEnd + 1;
     }
 
-    // 保持你原来的尺寸设置 不动
     const totalHeight = Math.max(
       lineSpacing,
       (currentRow + 1) * lineSpacing + 50,
@@ -438,22 +481,8 @@ export class JianpuSVGRenderer {
     this.svgElement.style.width = "100%";
     this.svgElement.style.height = "100%";
 
-    if (selectedNoteId !== null) {
-      this.selectNote(selectedNoteId);
-    }
-  }
-
-  selectNote(noteId: number | null): void {
-    const prevSelected = this.svgElement.querySelector(".note-group.selected");
-    if (prevSelected) {
-      prevSelected.classList.remove("selected");
-    }
-    if (noteId !== null) {
-      const noteGroup = this.svgElement.getElementById(`note-${noteId}`);
-      if (noteGroup) {
-        noteGroup.classList.add("selected");
-      }
-    }
+    // 渲染完成后自动高亮
+    this.highlightSelectedNotes();
   }
 
   findNoteAt(mouseX: number, mouseY: number): NoteRenderInfo | null {
