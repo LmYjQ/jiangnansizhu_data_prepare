@@ -49,10 +49,14 @@ export class JianpuSVGRenderer {
   // ======================
   clearAllHighlight(): void {
     const all = this.svgElement.querySelectorAll(
-      ".note-group.selected, .note-single-selected, .note-batch-selected"
+      ".note-group.selected, .note-single-selected, .note-batch-selected",
     );
     all.forEach((el) => {
-      el.classList.remove("selected", "note-single-selected", "note-batch-selected");
+      el.classList.remove(
+        "selected",
+        "note-single-selected",
+        "note-batch-selected",
+      );
     });
   }
 
@@ -90,10 +94,11 @@ export class JianpuSVGRenderer {
   }
 
   setScrollY(y: number): void {
-    const maxScroll = Math.max(
-      0,
-      this.getTotalHeight() - this.svgElement.clientHeight,
-    );
+    const viewHeight = this.svgElement.clientHeight || 600;
+    const totalHeight = this.getTotalHeight();
+
+    const maxScroll = Math.max(0, totalHeight - viewHeight + 200);
+
     this.scrollY = Math.max(0, Math.min(y, maxScroll));
     this.render();
   }
@@ -114,7 +119,8 @@ export class JianpuSVGRenderer {
   }
 
   getTotalHeight(): number {
-    if (!this.score || this.score.notes.length === 0) return 500;
+    if (!this.score || this.score.notes.length === 0) return 800;
+
     const notesPerRow = this.getNotesPerRow();
     let totalRows = 1;
     for (let i = 0; i < this.score.notes.length; i++) {
@@ -122,7 +128,8 @@ export class JianpuSVGRenderer {
         totalRows++;
       }
     }
-    return totalRows * this.config.lineSpacing + 100;
+
+    return totalRows * this.config.lineSpacing + 50;
   }
 
   getTotalWidth(): number {
