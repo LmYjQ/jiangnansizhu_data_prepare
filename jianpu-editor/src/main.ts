@@ -1,12 +1,9 @@
-// jianpu-editor/src/main.ts
 import { Note, Score } from "./types";
 import { JianpuSVGRenderer } from "./renderer";
 import { MidiExporter } from "./midi";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { SelectionManager } from "./component/selection"; 
-import { ShortcutManager } from "./component/shortcuts";
-import { HistoryManager } from "./component/history";
 
 // 获取DOM元素
 const svgElementRaw = document.getElementById("score-svg");
@@ -313,10 +310,6 @@ function importJson(): void {
         selectedNoteId = null;
         selectionManager.clearSelection();
         
-        // 更新管理器中的选中状态
-        shortcutManager.updateSelectedNoteId(selectedNoteId);
-        historyManager.updateSelectedNoteId(selectedNoteId);
-        
         autoAddBarLines();
         render();
 
@@ -397,10 +390,6 @@ function autoLoad(): void {
     // 重置选中状态
     selectedNoteId = null;
     selectionManager.clearSelection();
-    
-    // 更新管理器中的选中状态
-    shortcutManager.updateSelectedNoteId(selectedNoteId);
-    historyManager.updateSelectedNoteId(selectedNoteId);
 
     setStatus("已自动加载上次保存的乐谱");
   } catch (err) {
@@ -408,9 +397,115 @@ function autoLoad(): void {
   }
 }
 
-// 保存到历史
+// ========== 历史记录管理 ==========
+let history: Score[] = [JSON.parse(JSON.stringify(score))];
+let historyIndex: number = 0;
+
 function saveHistory(): void {
-  historyManager.saveHistory();
+  history = history.slice(0, historyIndex + 1);
+  history.push(JSON.parse(JSON.stringify(score)));
+  if (history.length > 50) {
+    history.shift();
+  }
+  historyIndex = history.length - 1;
+  saveScore();
+}
+
+function undo(): void {
+  if (historyIndex > 0) {
+    historyIndex--;
+    score = JSON.parse(JSON.stringify(history[historyIndex]));
+    selectedNoteId = null;
+    selectionManager.clearSelection();
+    render();
+    setStatus("已撤销");
+  }
+}
+
+function redo(): void {
+  if (historyIndex < history.length - 1) {
+    historyIndex++;
+    score = JSON.parse(JSON.stringify(history[historyIndex]));
+    selectedNoteId = null;
+    selectionManager.clearSelection();
+    render();
+    setStatus("已重做");
+  }
+}
+
+// ========== 快捷键管理 ==========
+let clipBoardNotes: Note[] = [];
+
+function copySelectedNotes(): void {
+  const multiSelectedIds = selectionManager.getMultiSelectedIds();
+  const targetIds =
+    multiSelectedIds.length > 0
+      ? multiSelectedIds
+      : selectedNoteId
+        ? [selectedNoteId]
+        : [];
+  if (targetIds.length === 0) {
+    setStatus("请先选择音符");
+    return;
+  }
+  clipBoardNotes = JSON.parse(
+    JSON.stringify(score.notes.filter((n) => targetIds.includes(n.id))),
+  );
+  setStatus(`已复制 ${clipBoardNotes.length} 个音符`);
+}
+
+function cutSelectedNotes(): void {
+  const multiSelectedIds = selectionManager.getMultiSelectedIds();
+  const targetIds =
+    multiSelectedIds.length > 0
+      ? multiSelectedIds
+      : selectedNoteId
+        ? [selectedNoteId]
+        : [];
+  if (targetIds.length === 0) {
+    setStatus("请先选择音符");
+    return;
+  }
+  saveHistory();
+  clipBoardNotes = JSON.parse(
+    JSON.stringify(score.notes.filter((n) => targetIds.includes(n.id))),
+  );
+  score.notes = score.notes.filter((n) => !targetIds.includes(n.id));
+  selectedNoteId = null;
+  selectionManager.clearSelection();
+  autoAddBarLines();
+  render();
+  setStatus(`已剪切 ${clipBoardNotes.length} 个音符`);
+}
+
+function pasteCopiedNotes(): void {
+  if (clipBoardNotes.length === 0) {
+    setStatus("剪贴板为空，请先复制音符");
+    return;
+  }
+  saveHistory();
+
+  // 计算插入位置
+  let insertIdx = score.notes.length;
+  if (selectedNoteId !== null) {
+    const idx = score.notes.findIndex((n) => n.id === selectedNoteId);
+    if (idx !== -1) insertIdx = idx + 1;
+  }
+
+  // 生成全新不重复的ID
+  let maxId =
+    score.notes.length > 0 ? Math.max(...score.notes.map((n) => n.id)) : -1;
+  const newNotes = clipBoardNotes.map((note) => {
+    maxId++;
+    return { ...JSON.parse(JSON.stringify(note)), id: maxId };
+  });
+
+  // 批量插入
+  score.notes.splice(insertIdx, 0, ...newNotes);
+  autoAddBarLines();
+  selectionManager.clearSelection();
+  render();
+  setStatus(`已粘贴 ${newNotes.length} 个音符`);
 }
 
 // 初始化选择管理器
@@ -431,29 +526,6 @@ const selectionManager = new SelectionManager(
     // 音符面板更新回调
     updateNotePanel();
   }
-);
-
-// 初始化快捷键管理器
-const shortcutManager = new ShortcutManager(
-  score,
-  selectedNoteId,
-  selectionManager,
-  saveHistory,
-  autoAddBarLines,
-  render,
-  updateNotePanel,
-  setStatus,
-  updateNote
-);
-
-// 初始化历史记录管理器
-const historyManager = new HistoryManager(
-  score,
-  selectedNoteId,
-  selectionManager,
-  render,
-  setStatus,
-  saveScore
 );
 
 // MIDI音符转简谱（C调）
@@ -568,19 +640,61 @@ svgElement.addEventListener(
     renderer.selectNote(selectedNoteId);
     updateNotePanel();
     setStatus(`已选择音符 ID:${selectedNoteId}, 时值: ${score.notes.find((n) => n.id === selectedNoteId)?.duration || 0}拍`);
-    
-    // 更新管理器中的选中状态
-    shortcutManager.updateSelectedNoteId(selectedNoteId);
-    historyManager.updateSelectedNoteId(selectedNoteId);
   },
   { capture: true },
 );
 
 // ========== 键盘事件（全兼容Win/Mac） ==========
 window.addEventListener("keydown", (e) => {
-  // 使用快捷键管理器处理快捷键
-  shortcutManager.handleKeyDown(e);
-  historyManager.handleKeyDown(e);
+  const isMeta = e.ctrlKey || e.metaKey;
+
+  // 核心快捷键：复制/剪切/粘贴/撤销/重做
+  if (isMeta && e.key.toLowerCase() === "c") {
+    copySelectedNotes();
+    e.preventDefault();
+    return;
+  }
+  if (isMeta && e.key.toLowerCase() === "x") {
+    cutSelectedNotes();
+    e.preventDefault();
+    return;
+  }
+  if (isMeta && e.key.toLowerCase() === "v") {
+    pasteCopiedNotes();
+    e.preventDefault();
+    return;
+  }
+  if (isMeta && e.key.toLowerCase() === "z") {
+    undo();
+    e.preventDefault();
+    return;
+  }
+  if (isMeta && e.key.toLowerCase() === "y") {
+    redo();
+    e.preventDefault();
+    return;
+  }
+
+  // 删除：支持批量删除+单个删除
+  if (e.key === "Delete" || e.key === "Backspace") {
+    const multiSelectedIds = selectionManager.getMultiSelectedIds();
+    const targetIds =
+      multiSelectedIds.length > 0
+        ? multiSelectedIds
+        : selectedNoteId
+          ? [selectedNoteId]
+          : [];
+    if (targetIds.length === 0) return;
+    saveHistory();
+    score.notes = score.notes.filter((n) => !targetIds.includes(n.id));
+    selectedNoteId = null;
+    selectionManager.clearSelection();
+    autoAddBarLines();
+    render();
+    setStatus(`已删除 ${targetIds.length} 个音符`);
+    e.preventDefault();
+    return;
+  }
 
   // 编辑模式：数字键快速输入音符
   if (editMode === "edit") {
@@ -633,11 +747,6 @@ window.addEventListener("keydown", (e) => {
       renderer.selectNote(selectedNoteId);
       updateNotePanel();
       setStatus(`已选择音符 ID:${selectedNoteId}`);
-      
-      // 更新管理器中的选中状态
-      shortcutManager.updateSelectedNoteId(selectedNoteId);
-      historyManager.updateSelectedNoteId(selectedNoteId);
-      
       e.preventDefault();
     }
     if (e.key === "ArrowLeft" && currentIdx > 0) {
@@ -646,11 +755,6 @@ window.addEventListener("keydown", (e) => {
       renderer.selectNote(selectedNoteId);
       updateNotePanel();
       setStatus(`已选择音符 ID:${selectedNoteId}`);
-      
-      // 更新管理器中的选中状态
-      shortcutManager.updateSelectedNoteId(selectedNoteId);
-      historyManager.updateSelectedNoteId(selectedNoteId);
-      
       e.preventDefault();
     }
   } else {
@@ -690,8 +794,8 @@ document.getElementById("btn-mode")?.addEventListener("click", () => {
 });
 
 document.getElementById("btn-clear")?.addEventListener("click", clear);
-document.getElementById("btn-undo")?.addEventListener("click", () => historyManager.undo());
-document.getElementById("btn-redo")?.addEventListener("click", () => historyManager.redo());
+document.getElementById("btn-undo")?.addEventListener("click", undo);
+document.getElementById("btn-redo")?.addEventListener("click", redo);
 document
   .getElementById("btn-save-manual")
   ?.addEventListener("click", () => saveScore(true));
@@ -734,10 +838,6 @@ btnPageUp?.addEventListener("click", () => {
   if (allNoteIds.length > 0) {
     selectedNoteId = allNoteIds[newIdx];
     selectionManager.clearSelection();
-    
-    // 更新管理器中的选中状态
-    shortcutManager.updateSelectedNoteId(selectedNoteId);
-    historyManager.updateSelectedNoteId(selectedNoteId);
   }
   render();
   if (selectedNoteId !== null) setStatus(`已选择音符 ID:${selectedNoteId}`);
@@ -753,10 +853,6 @@ btnPageDown?.addEventListener("click", () => {
   if (allNoteIds.length > 0) {
     selectedNoteId = allNoteIds[newIdx];
     selectionManager.clearSelection();
-    
-    // 更新管理器中的选中状态
-    shortcutManager.updateSelectedNoteId(selectedNoteId);
-    historyManager.updateSelectedNoteId(selectedNoteId);
   }
   render();
   if (selectedNoteId !== null) setStatus(`已选择音符 ID:${selectedNoteId}`);
