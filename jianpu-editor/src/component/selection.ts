@@ -2,65 +2,61 @@ import { JianpuSVGRenderer } from "../renderer";
 
 // 框选管理器类
 export class SelectionManager {
-  private svgElement: SVGSVGElement;
+  private container: HTMLElement;
   private renderer: JianpuSVGRenderer;
-  
+
   // 框选状态
   private isDragging = false;
   private dragStartX = 0;
   private dragStartY = 0;
-  private selectionRect: SVGRectElement | null = null;
-  
+  private selectionRectEl: HTMLElement | null = null;
+
   // 音符元素缓存
   private allNoteIds: number[] = [];
-  private allNoteElements: { id: number; element: Element; rect: DOMRect }[] = [];
-  
+  private allNoteElements: { id: number; element: Element }[] = [];
+
   // 选中的音符ID
   private multiSelectedIds: number[] = [];
   private selectedNoteId: number | null = null;
-  
+  private dragJustFinished = false;
+
   // 状态更新回调
   private onSelectionChange?: (selectedIds: number[]) => void;
   private onStatusUpdate?: (message: string) => void;
   private onNotePanelUpdate?: () => void;
 
   constructor(
-    svgElement: SVGSVGElement,
+    container: HTMLElement,
     renderer: JianpuSVGRenderer,
     onSelectionChange?: (selectedIds: number[]) => void,
     onStatusUpdate?: (message: string) => void,
     onNotePanelUpdate?: () => void
   ) {
-    this.svgElement = svgElement;
+    this.container = container;
     this.renderer = renderer;
     this.onSelectionChange = onSelectionChange;
     this.onStatusUpdate = onStatusUpdate;
     this.onNotePanelUpdate = onNotePanelUpdate;
-    
+
     this.initSelectionListeners();
   }
 
-  // 更新音符ID列表
   updateNoteIds(noteIds: number[]): void {
     this.allNoteIds = noteIds;
   }
 
-  // 获取当前选中的音符ID
   getSelectedNoteId(): number | null {
     return this.selectedNoteId;
   }
 
-  // 获取批量选中的音符ID
   getMultiSelectedIds(): number[] {
     return this.multiSelectedIds;
   }
 
-  // 设置单个选中的音符ID
   setSelectedNoteId(noteId: number | null): void {
     this.selectedNoteId = noteId;
   }
 
-  // 设置批量选中的音符ID
   setMultiSelectedIds(ids: number[]): void {
     this.multiSelectedIds = ids;
     this.renderer.setMultiSelected(ids);
@@ -69,79 +65,74 @@ export class SelectionManager {
     }
   }
 
-  // 清空选中状态
   clearSelection(): void {
     this.multiSelectedIds = [];
     this.selectedNoteId = null;
     this.renderer.clearAllHighlight();
   }
 
-  // 缓存音符元素
+  consumeDragJustFinished(): boolean {
+    const was = this.dragJustFinished;
+    this.dragJustFinished = false;
+    return was;
+  }
+
   cacheNoteElements(): void {
     this.allNoteElements = [];
-    const allElements = this.svgElement.querySelectorAll("*");
+    const allElements = this.container.querySelectorAll("[id^='note-']");
     allElements.forEach((el) => {
       const idMatch = el.id.match(/note[_-]?(\d+)/i);
       if (idMatch) {
         const id = parseInt(idMatch[1], 10);
         if (this.allNoteIds.includes(id)) {
-          this.allNoteElements.push({
-            id,
-            element: el,
-            rect: el.getBoundingClientRect(),
-          });
+          this.allNoteElements.push({ id, element: el });
         }
       }
     });
   }
 
-  // 创建选框元素
+  // 创建选框div（position: fixed，跟随鼠标）
   private createSelectionRect(): void {
-    if (this.selectionRect) return;
-    this.selectionRect = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "rect",
-    );
-    this.selectionRect.setAttribute("fill", "rgba(66, 133, 244, 0.2)");
-    this.selectionRect.setAttribute("stroke", "#4285f4");
-    this.selectionRect.setAttribute("stroke-width", "1");
-    this.selectionRect.setAttribute("pointer-events", "none");
-    this.svgElement.appendChild(this.selectionRect);
+    if (this.selectionRectEl) return;
+    this.selectionRectEl = document.createElement("div");
+    this.selectionRectEl.style.cssText = `
+      position: fixed;
+      pointer-events: none;
+      background: rgba(66, 133, 244, 0.15);
+      border: 1px solid #4285f4;
+      z-index: 1000;
+      display: none;
+    `;
+    document.body.appendChild(this.selectionRectEl);
   }
 
-  // 更新选框位置
   private updateSelectionRect(x1: number, y1: number, x2: number, y2: number): void {
-    if (!this.selectionRect) return;
+    if (!this.selectionRectEl) return;
     const x = Math.min(x1, x2);
     const y = Math.min(y1, y2);
     const width = Math.abs(x2 - x1);
     const height = Math.abs(y2 - y1);
-    this.selectionRect.setAttribute("x", x.toString());
-    this.selectionRect.setAttribute("y", y.toString());
-    this.selectionRect.setAttribute("width", width.toString());
-    this.selectionRect.setAttribute("height", height.toString());
+    this.selectionRectEl.style.left = `${x}px`;
+    this.selectionRectEl.style.top = `${y}px`;
+    this.selectionRectEl.style.width = `${width}px`;
+    this.selectionRectEl.style.height = `${height}px`;
+    this.selectionRectEl.style.display = "block";
   }
 
-  // 移除选框
   private removeSelectionRect(): void {
-    if (this.selectionRect) {
-      this.svgElement.removeChild(this.selectionRect);
-      this.selectionRect = null;
+    if (this.selectionRectEl) {
+      document.body.removeChild(this.selectionRectEl);
+      this.selectionRectEl = null;
     }
   }
 
-  // 判断元素是否在选框内
   private isElementInRect(
     rect: DOMRect,
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
+    minX: number,
+    minY: number,
+    maxX: number,
+    maxY: number
   ): boolean {
-    const minX = Math.min(x1, x2);
-    const maxX = Math.max(x1, x2);
-    const minY = Math.min(y1, y2);
-    const maxY = Math.max(y1, y2);
     return !(
       rect.right < minX ||
       rect.left > maxX ||
@@ -150,86 +141,61 @@ export class SelectionManager {
     );
   }
 
-  // 初始化选框相关的事件监听器
   private initSelectionListeners(): void {
-    // 鼠标按下：开始框选
-    this.svgElement.addEventListener(
+    this.container.addEventListener(
       "mousedown",
       (e) => {
-        // 只处理左键，排除右键菜单
         if (e.button !== 0) return;
-        // 阻止Mac触摸板默认滚动行为
         e.preventDefault();
         e.stopPropagation();
 
-        // 清空之前的选中和高亮
         this.clearSelection();
 
-        // 记录起点坐标（SVG坐标系）
-        const svgPoint = this.svgElement.createSVGPoint();
-        svgPoint.x = e.clientX;
-        svgPoint.y = e.clientY;
-        const svgCoords = svgPoint.matrixTransform(
-          this.svgElement.getScreenCTM()!.inverse(),
-        );
-        this.dragStartX = svgCoords.x;
-        this.dragStartY = svgCoords.y;
+        // 记录起点（屏幕坐标，与getBoundingClientRect一致）
+        this.dragStartX = e.clientX;
+        this.dragStartY = e.clientY;
         this.isDragging = true;
 
-        // 创建选框
         this.createSelectionRect();
         this.updateSelectionRect(this.dragStartX, this.dragStartY, this.dragStartX, this.dragStartY);
       },
-      { capture: true, passive: false },
+      { capture: true, passive: false }
     );
 
-    // 鼠标移动：更新选框和选中状态
-    this.svgElement.addEventListener(
+    this.container.addEventListener(
       "mousemove",
       (e) => {
-        if (!this.isDragging || !this.selectionRect) return;
+        if (!this.isDragging || !this.selectionRectEl) return;
         e.preventDefault();
         e.stopPropagation();
 
-        // 更新选框坐标
-        const svgPoint = this.svgElement.createSVGPoint();
-        svgPoint.x = e.clientX;
-        svgPoint.y = e.clientY;
-        const svgCoords = svgPoint.matrixTransform(
-          this.svgElement.getScreenCTM()!.inverse(),
-        );
-        this.updateSelectionRect(this.dragStartX, this.dragStartY, svgCoords.x, svgCoords.y);
+        const curX = e.clientX;
+        const curY = e.clientY;
+        this.updateSelectionRect(this.dragStartX, this.dragStartY, curX, curY);
 
-        // 计算哪些音符在选框内
-        const screenRect = this.selectionRect.getBoundingClientRect();
+        const minX = Math.min(this.dragStartX, curX);
+        const maxX = Math.max(this.dragStartX, curX);
+        const minY = Math.min(this.dragStartY, curY);
+        const maxY = Math.max(this.dragStartY, curY);
+
+        // 实时计算元素位置（避免滚动后缓存失效）
         const selectedIds: number[] = [];
         this.allNoteElements.forEach((note) => {
-          if (
-            this.isElementInRect(
-              note.rect,
-              screenRect.left,
-              screenRect.top,
-              screenRect.right,
-              screenRect.bottom,
-            )
-          ) {
+          const rect = note.element.getBoundingClientRect();
+          if (this.isElementInRect(rect, minX, minY, maxX, maxY)) {
             selectedIds.push(note.id);
           }
         });
 
-        // 更新选中状态和高亮
         this.setMultiSelectedIds([...new Set(selectedIds)]);
-        if (this.onNotePanelUpdate) {
-          this.onNotePanelUpdate();
-        }
+        if (this.onNotePanelUpdate) this.onNotePanelUpdate();
         if (this.onStatusUpdate) {
           this.onStatusUpdate(`已选中 ${this.multiSelectedIds.length} 个音符`);
         }
       },
-      { capture: true, passive: false },
+      { capture: true, passive: false }
     );
 
-    // 鼠标抬起：结束框选
     window.addEventListener(
       "mouseup",
       () => {
@@ -238,16 +204,16 @@ export class SelectionManager {
         this.removeSelectionRect();
 
         if (this.multiSelectedIds.length > 0) {
+          this.dragJustFinished = true;
           if (this.onStatusUpdate) {
             this.onStatusUpdate(`框选完成，共选中 ${this.multiSelectedIds.length} 个音符`);
           }
         }
       },
-      { capture: true },
+      { capture: true }
     );
 
-    // 鼠标离开SVG：结束框选
-    this.svgElement.addEventListener("mouseleave", () => {
+    this.container.addEventListener("mouseleave", () => {
       if (!this.isDragging) return;
       this.isDragging = false;
       this.removeSelectionRect();

@@ -7,11 +7,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { SelectionManager } from "./component/selection"; 
 
 // 获取DOM元素
-const svgElementRaw = document.getElementById("score-svg");
-if (!(svgElementRaw instanceof SVGSVGElement)) {
-  throw new Error('Element with id "score-svg" is not an SVGSVGElement.');
+const container = document.getElementById("score-canvas") as HTMLElement;
+if (!container) {
+  throw new Error('Element with id "score-canvas" not found.');
 }
-const svgElement = svgElementRaw;
 const titleInput = document.getElementById("title-input") as HTMLInputElement;
 const tempoInput = document.getElementById("tempo-input") as HTMLInputElement;
 const beatsInput = document.getElementById("beats-input") as HTMLInputElement;
@@ -23,7 +22,7 @@ const btnPageUp = document.getElementById("btn-page-up") as HTMLButtonElement;
 const btnPageDown = document.getElementById("btn-page-down") as HTMLButtonElement;
 
 // 初始化渲染器
-const renderer = new JianpuSVGRenderer(svgElement);
+const renderer = new JianpuSVGRenderer(container);
 
 // 核心基础状态
 let selectedNoteId: number | null = null;
@@ -269,9 +268,10 @@ function addNote(note: Omit<Note, "id">, insertAfterId?: number): void {
   }
   autoAddBarLines();
   render();
-  
-  // 更新光标位置到新插入的音符后面
-  renderer.setCursorPosition(insertIdx + 1);
+
+  // autoAddBarLines 重建了数组，用 ID 找新位置
+  const newNoteIdx = score.notes.findIndex((n) => n.id === newNote.id);
+  renderer.setCursorPosition(newNoteIdx !== -1 ? newNoteIdx + 1 : score.notes.length);
   
   setStatus(`已添加音符 ${note.value} (时值: ${lastDuration}拍)`);
 }
@@ -529,22 +529,21 @@ function pasteCopiedNotes(): void {
   autoAddBarLines();
   selectionManager.clearSelection();
   render();
-  
-  // 更新光标位置到最后一个粘贴的音符后面
-  renderer.setCursorPosition(insertIdx + newNotes.length);
+
+  // autoAddBarLines 重建了数组，用最后一个粘贴音符的 ID 找新位置
+  const lastPastedNote = newNotes[newNotes.length - 1];
+  const lastPastedIdx = score.notes.findIndex((n) => n.id === lastPastedNote.id);
+  renderer.setCursorPosition(lastPastedIdx !== -1 ? lastPastedIdx + 1 : score.notes.length);
   
   setStatus(`已粘贴 ${newNotes.length} 个音符`);
 }
 
 // 初始化选择管理器
-let multiSelectedIds: number[] = [];
-
 const selectionManager = new SelectionManager(
-  svgElement,
+  container,
   renderer,
-  (selectedIds) => {
-    // 选中状态变化回调
-    multiSelectedIds = selectedIds;
+  (_selectedIds) => {
+    // 选中状态变化回调（由selectionManager内部维护）
   },
   (message) => {
     // 状态更新回调
@@ -639,9 +638,9 @@ async function initMidi(): Promise<void> {
 }
 
 // ========== 音符点击事件（单选+Shift连续多选） ==========
-svgElement.addEventListener(
+container.addEventListener(
   "note-click",
-  (e) => {
+  (e: Event) => {
     // 框选过程中不触发单选
     const event = e as CustomEvent<{ noteId: number }>;
     const clickNoteId = event.detail.noteId;
@@ -673,27 +672,22 @@ svgElement.addEventListener(
   { capture: true },
 );
 
-// ========== SVG点击事件（用于设置光标位置） ==========
-svgElement.addEventListener(
+// ========== 容器点击事件（用于设置光标位置） ==========
+container.addEventListener(
   "click",
-  (e) => {
-    // 如果是音符点击事件，不处理
-    if (e.type === "note-click") return;
-    
-    // 获取SVG坐标
-    const svgPoint = svgElement.createSVGPoint();
-    svgPoint.x = e.clientX;
-    svgPoint.y = e.clientY;
-    const svgCoords = svgPoint.matrixTransform(
-      svgElement.getScreenCTM()!.inverse(),
-    );
-    
-    // 查找点击位置所在的行
-    const { lineSpacing } = renderer["config"];
-    const row = Math.floor((svgCoords.y + renderer["scrollY"]) / lineSpacing);
-    
-    // 设置光标位置
-    renderer.setCursorAtPosition(svgCoords.x, svgCoords.y, row);
+  (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    // 点击音符元素时由 note-click 事件负责光标，此处跳过
+    if (target.closest(".note-group")) return;
+    // 框选拖拽结束后产生的 click，不清除框选结果
+    if (selectionManager.consumeDragJustFinished()) return;
+
+    // 点击空白处：清除选中，光标回到末尾
+    selectedNoteId = null;
+    selectionManager.clearSelection();
+    renderer.selectNote(null);
+    renderer.setCursorPosition(score.notes.length);
+    updateNotePanel();
   },
   { capture: true },
 );
@@ -900,8 +894,8 @@ beatsInput?.addEventListener("change", () => {
 
 // 翻页按钮
 btnPageUp?.addEventListener("click", () => {
-  const notesPerRow = Math.floor((svgElement.width.baseVal.value - 80) / 40);
-  const rowsPerPage = Math.floor(svgElement.height.baseVal.value / 80);
+  const notesPerRow = Math.floor((container.clientWidth - 80) / 40);
+  const rowsPerPage = Math.floor(container.clientHeight / 80);
   const step = rowsPerPage * notesPerRow;
   const currentIdx =
     selectedNoteId !== null ? allNoteIds.indexOf(selectedNoteId) : -1;
@@ -915,9 +909,9 @@ btnPageUp?.addEventListener("click", () => {
 });
 
 btnPageDown?.addEventListener("click", () => {
-  const rowsPerPage = Math.floor(svgElement.height.baseVal.value / 80);
+  const rowsPerPage = Math.floor(container.clientHeight / 80);
   const step =
-    rowsPerPage * Math.floor((svgElement.width.baseVal.value - 80) / 40);
+    rowsPerPage * Math.floor((container.clientWidth - 80) / 40);
   const currentIdx =
     selectedNoteId !== null ? allNoteIds.indexOf(selectedNoteId) : -1;
   const newIdx = Math.min(allNoteIds.length - 1, currentIdx + step);

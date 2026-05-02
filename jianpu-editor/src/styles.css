@@ -90,20 +90,6 @@ h1 {
   min-width: 800px;
 }
 
-.canvas-scroll {
-  height: calc(100vh - 296px);
-  width: 100%;
-  flex: 1;
-  overflow-x: auto;
-  overflow-y: auto;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 10px;
-  position: relative;
-  box-sizing: border-box;
-}
-
 .canvas-controls {
   display: flex;
   align-items: center;
@@ -240,17 +226,69 @@ h1 {
   color: #fff;
 }
 
+/* 简谱画布容器 */
+.score-canvas {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 296px);
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* 每一行音符 */
+.score-row {
+  display: flex;
+  align-items: center;
+  overflow: visible;
+  flex-shrink: 0;
+}
+
+/* 光标 */
+.jianpu-cursor {
+  position: absolute;
+  width: 2px;
+  background-color: #4285f4;
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.note-bar {
+  position: absolute;
+  width: 1px;
+  height: 60%;
+  background-color: #000;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
 /* 每个音 */
 .note-group {
+  position: relative;
   cursor: pointer;
   background-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: visible;
+  cursor: pointer;
+  box-sizing: border-box;
 }
 
 .note-single-selected {
   background-color: #e0f7fa;
 }
 
-/* 批量选中音符：橙色高亮+发光 */
+/* 批量选中音符：蓝色虚线边框 */
 .note-batch-selected {
   border: 1px dotted #2e53fa !important;
 }

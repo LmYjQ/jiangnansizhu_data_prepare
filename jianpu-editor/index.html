@@ -1,93 +1,106 @@
 <!doctype html>
 <html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>简谱编辑器</title>
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
 
-<head>
-  <meta charset="UTF-8" />
-  <link rel="stylesheet" href="/src/styles.css" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>简谱编辑器</title>
-  <script type="module" src="/src/main.ts" defer></script>
-</head>
+  <body>
+    <main class="container">
+      <h1>简谱编辑器</h1>
 
-<body>
-  <main class="container">
-    <h1>简谱编辑器</h1>
-
-    <div class="toolbar">
-      <div class="toolbar-group">
-        <label>曲名: <input type="text" id="title-input" value="未命名" /></label>
-        <label>速度: <input type="number" id="tempo-input" value="60" min="30" max="200" /> BPM</label>
-        <label>拍数: <input type="number" id="beats-input" value="4" min="2" max="8" /></label>
-        <label>音符: <select id="note‌-input">
-            <option value="99">全音符</option>
-            <option value="2">二分音符</option>
-            <option value="1" selected>四分音符</option>
-            <option value="0.5">八分音符</option>
-            <option value="0.25">十六分音符</option>
-            <option value="0.125">三十二分音符</option>
-          </select></label>
-      </div>
-      <div class="toolbar-group">
-        <button id="btn-mode">编辑模式</button>
-        <button id="btn-clear">清空</button>
-      </div>
-      <div class="toolbar-group">
-        <button id="btn-midi-in">MIDI输入</button>
-        <span id="midi-status" class="midi-status">未连接</span>
-      </div>
-      <div class="toolbar-group">
-        <button id="btn-undo">撤销</button>
-        <button id="btn-redo">重做</button>
-      </div>
-      <div class="toolbar-group">
-        <button id="btn-save-manual">保存</button>
-        <button id="btn-import-json">导入JSON</button>
-        <button id="btn-export-json">导出JSON</button>
-        <button id="btn-export-midi">导出MIDI</button>
-      </div>
-    </div>
-
-    <div class="editor-panel">
-      <!-- left -->
-      <div class="canvas-container">
-        <div class="canvas-scroll" id="canvas-scroll">
-          <svg id="score-svg"></svg>
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <label
+            >曲名: <input type="text" id="title-input" value="未命名"
+          /></label>
+          <label
+            >速度:
+            <input
+              type="number"
+              id="tempo-input"
+              value="60"
+              min="30"
+              max="200"
+            />
+            BPM</label
+          >
+          <label
+            >拍数:
+            <input type="number" id="beats-input" value="4" min="2" max="8"
+          /></label>
+          <label
+            >音符:
+            <select id="note‌-input">
+              <option value="99">全音符</option>
+              <option value="2">二分音符</option>
+              <option value="1" selected>四分音符</option>
+              <option value="0.5">八分音符</option>
+              <option value="0.25">十六分音符</option>
+              <option value="0.125">三十二分音符</option>
+            </select></label
+          >
+        </div>
+        <div class="toolbar-group">
+          <button id="btn-mode">编辑模式</button>
+          <button id="btn-clear">清空</button>
+        </div>
+        <div class="toolbar-group">
+          <button id="btn-midi-in">MIDI输入</button>
+          <span id="midi-status" class="midi-status">未连接</span>
+        </div>
+        <div class="toolbar-group">
+          <button id="btn-undo">撤销</button>
+          <button id="btn-redo">重做</button>
+        </div>
+        <div class="toolbar-group">
+          <button id="btn-save-manual">保存</button>
+          <button id="btn-import-json">导入JSON</button>
+          <button id="btn-export-json">导出JSON</button>
+          <button id="btn-export-midi">导出MIDI</button>
         </div>
       </div>
-      <!-- right -->
-      <div class="note-panel">
-        <div class="note-properties">
-          <h3>音符属性</h3>
-          <div id="note-editing" class="note-editing">
-            <p>请选择或添加音符</p>
+
+      <div class="editor-panel">
+        <!-- left -->
+        <div class="canvas-container">
+          <div id="score-canvas" class="score-canvas"></div>
+        </div>
+        <!-- right -->
+        <div class="note-panel">
+          <div class="note-properties">
+            <h3>音符属性</h3>
+            <div id="note-editing" class="note-editing">
+              <p>请选择或添加音符</p>
+            </div>
           </div>
-        </div>
 
-        <div class="canvas-controls">
-          <!-- <button id="btn-page-up">上一页</button>
+          <div class="canvas-controls">
+            <!-- <button id="btn-page-up">上一页</button>
           <span id="page-info">第 1 / 1 页</span>
           <button id="btn-page-down">下一页</button> -->
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="status-bar">
-      <div class="shortcuts">
-        <span class="shortcut-title">快捷键:</span>
-        <span>0-7</span>音符
-        <span class="sep">|</span>
-        <span>.</span>附点
-        <span class="sep">|</span>
-        <span>b</span>板/切换
-        <span class="sep">|</span>
-        <span>y</span>眼
-        <span class="sep">|</span>
-        <span>↑↓</span>八度
-
+      <div class="status-bar">
+        <div class="shortcuts">
+          <span class="shortcut-title">快捷键:</span>
+          <span>0-7</span>音符
+          <span class="sep">|</span>
+          <span>.</span>附点
+          <span class="sep">|</span>
+          <span>b</span>板/切换
+          <span class="sep">|</span>
+          <span>y</span>眼
+          <span class="sep">|</span>
+          <span>↑↓</span>八度
+        </div>
+        <span id="status-msg">就绪</span>
       </div>
-      <span id="status-msg">就绪</span>
-    </div>
-  </main>
-</body>
-
+    </main>
+  </body>
 </html>
