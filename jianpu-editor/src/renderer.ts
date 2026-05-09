@@ -363,29 +363,7 @@ export class JianpuSVGRenderer {
         beatLines: 0,
         lineBreak: note.lineBreak,
       });
-    } else if (note.value === "0") {
-      const noteValue = document.createElement("div");
-      noteValue.textContent = "0";
-      noteValue.style.fontFamily = "Songti, SimSun, serif";
-      noteValue.style.fontSize = `${noteFontSize}px`;
-      noteDiv.appendChild(noteValue);
-
-      this.noteInfos.push({
-        id: note.id,
-        x: x - width / 2,
-        y: y - totalHeight / 2,
-        width,
-        height: totalHeight,
-        row,
-        value: note.value,
-        type: note.type,
-        octave: note.octave,
-        duration: note.duration,
-        dotted: note.dotted,
-        beatLines: 0,
-        lineBreak: note.lineBreak,
-      });
-    } else if (/[1-7]/.test(note.value)) {
+    } else if (/[0-7]/.test(note.value)) {
       let noteColor = "#000";
       if (note.yan) noteColor = "blue";
       else if (note.ban) noteColor = "orange";
