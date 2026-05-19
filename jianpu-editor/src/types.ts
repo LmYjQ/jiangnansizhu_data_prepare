@@ -14,6 +14,7 @@ export interface Note {
   type: number | null; // 音符类型 (按照音符的时值分类，99=全音符, 2=二分音符, 1=四分音符, 0.5=八分音符, 0.25=十六分音符,null=未知)
   duration: number; // 时值，实际时值=type * (1 + (dotted ? 0.5 : 0))，单位为拍
   dotted: boolean; // 是否附点
+  doubleDotted: boolean; // 双附点
   ban: number; // 板眼：板=强拍 (0=无, 1=板)
   yan: number; // 板眼：眼=弱拍 (0=无, 1=眼)
   lineBreak: boolean; // 手动分页符（在该音符后换行）
@@ -44,6 +45,7 @@ export interface NoteRenderInfo {
   octave: number; // 八度
   duration: number; // 时值
   dotted: boolean; // 附点
+  doubleDotted: boolean; // 双附点
   beatLines: number; // 拍线条数
   lineBreak: boolean; // 分页符
 }

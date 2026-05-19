@@ -344,6 +344,7 @@ export class JianpuSVGRenderer {
         octave: 0,
         duration: note.duration,
         dotted: false,
+        doubleDotted: false,
         beatLines: 0,
         lineBreak: note.lineBreak,
       });
@@ -360,6 +361,7 @@ export class JianpuSVGRenderer {
         octave: 0,
         duration: note.duration,
         dotted: false,
+        doubleDotted: false,
         beatLines: 0,
         lineBreak: note.lineBreak,
       });
@@ -455,8 +457,33 @@ export class JianpuSVGRenderer {
           transform: translate(-50%, -50%);
         `;
         noteDiv.appendChild(dotted);
-      }
+      } else if (note.doubleDotted) {
+        const dotted1 = document.createElement("div");
+        dotted1.style.cssText = `
+          position: absolute;
+          width: ${dotRadius * 1.3}px;
+          height: ${dotRadius * 1.3}px;
+          border-radius: 50%;
+          background-color: #000;
+          top: calc(50% + 6px);
+          left: calc(50% + 8px);
+          transform: translate(-50%, -50%);
+        `;
+        noteDiv.appendChild(dotted1);
 
+        const dotted2 = document.createElement("div");
+        dotted2.style.cssText = `
+          position: absolute;
+          width: ${dotRadius * 1.3}px;
+          height: ${dotRadius * 1.3}px;
+          border-radius: 50%;
+          background-color: #000;
+          top: calc(50% + 6px);
+          left: calc(50% + 16px);
+          transform: translate(-50%, -50%);
+        `;
+        noteDiv.appendChild(dotted2);
+      }
       this.noteInfos.push({
         id: note.id,
         x: x - width / 2,
@@ -468,6 +495,7 @@ export class JianpuSVGRenderer {
         octave: note.octave,
         duration: note.duration,
         dotted: note.dotted,
+        doubleDotted: note.doubleDotted,
         type: note.type,
         beatLines,
         lineBreak: note.lineBreak,
@@ -556,6 +584,8 @@ export class JianpuSVGRenderer {
           tempBeat = 0;
         }
         barEnd = j;
+        // 如果遇到 space，结束当前小节截取，space 后面重新计算一拍
+        if (n.value === "space") break;
       }
 
       // 3. 判断是否需要换行
@@ -582,6 +612,18 @@ export class JianpuSVGRenderer {
         tempBeat += n.duration;
         currentX += noteSpacing;
 
+        // 如果遇到 space，重置拍数并添加间隔
+        if (n.value === "space") {
+          tempBeat = 0;
+          if (this.currentRowDiv) {
+            const spacer = document.createElement("div");
+            spacer.style.cssText = `width: ${noteSpacing * 0.5}px; flex-shrink: 0;`;
+            this.currentRowDiv.appendChild(spacer);
+          }
+          currentX += noteSpacing * 0.5;
+          continue;
+        }
+
         if (tempBeat >= 1) {
           if (this.currentRowDiv) {
             const spacer = document.createElement("div");
@@ -598,7 +640,10 @@ export class JianpuSVGRenderer {
 
     this.highlightSelectedNotes();
     if (this.cursorPosition) {
-      const clampedIndex = Math.min(this.cursorPosition.index, this.score.notes.length);
+      const clampedIndex = Math.min(
+        this.cursorPosition.index,
+        this.score.notes.length,
+      );
       this.setCursorPosition(clampedIndex);
     } else {
       this.setCursorPosition(this.score.notes.length);

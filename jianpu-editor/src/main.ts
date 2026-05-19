@@ -4,7 +4,7 @@ import { JianpuSVGRenderer } from "./renderer";
 import { MidiExporter } from "./midi";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import { SelectionManager } from "./component/selection"; 
+import { SelectionManager } from "./component/selection";
 
 // 获取DOM元素
 const container = document.getElementById("score-canvas") as HTMLElement;
@@ -19,7 +19,9 @@ const noteInput = document.getElementById("note‌-input") as HTMLSelectElement;
 const statusMsg = document.getElementById("status-msg") as HTMLElement;
 const noteEditing = document.getElementById("note-editing") as HTMLElement;
 const btnPageUp = document.getElementById("btn-page-up") as HTMLButtonElement;
-const btnPageDown = document.getElementById("btn-page-down") as HTMLButtonElement;
+const btnPageDown = document.getElementById(
+  "btn-page-down",
+) as HTMLButtonElement;
 
 // 初始化渲染器
 const renderer = new JianpuSVGRenderer(container);
@@ -93,6 +95,7 @@ function autoAddBarLines(): void {
           type: null,
           duration: 0,
           dotted: false,
+          doubleDotted: false,
           ban: 0,
           yan: 0,
           lineBreak: false,
@@ -124,7 +127,7 @@ function render(): void {
 // 更新音符编辑面板
 function updateNotePanel(): void {
   const multiSelectedIds = selectionManager.getMultiSelectedIds();
-  
+
   if (multiSelectedIds.length > 1) {
     noteEditing.innerHTML = `<p>已批量选中 ${multiSelectedIds.length} 个音符</p><p>可使用 Ctrl+C/V 复制粘贴 | Delete删除</p>`;
     return;
@@ -164,6 +167,7 @@ function updateNotePanel(): void {
         <option value="0.125" ${note.type === 0.125 ? "selected" : ""}>三十二分音符</option>
       </select></label>
       <label>附点: <input type="checkbox" id="edit-dotted" ${note.dotted ? "checked" : ""}></label>
+      <label>双附点: <input type="checkbox" id="edit-double-dotted" ${note.doubleDotted ? "checked" : ""}></label>
       <label>板: <input type="checkbox" id="edit-ban" ${note.ban === 1 ? "checked" : ""}></label>
       <label>眼: <input type="checkbox" id="edit-yan" ${note.yan === 1 ? "checked" : ""}></label>
       <label>分页符: <input type="checkbox" id="edit-linebreak" ${note.lineBreak ? "checked" : ""}></label>
@@ -189,6 +193,16 @@ function updateNotePanel(): void {
     const dotted = (e.target as HTMLInputElement).checked;
     updateNote(selectedNoteId!, { dotted });
   });
+  document.getElementById("edit-dotted")?.addEventListener("change", (e) => {
+    const dotted = (e.target as HTMLInputElement).checked;
+    updateNote(selectedNoteId!, { dotted });
+  });
+  document
+    .getElementById("edit-double-dotted")
+    ?.addEventListener("change", (e) => {
+      const doubleDotted = (e.target as HTMLInputElement).checked;
+      updateNote(selectedNoteId!, { doubleDotted });
+    });
   document.getElementById("edit-ban")?.addEventListener("change", (e) => {
     const ban = (e.target as HTMLInputElement).checked ? 1 : 0;
     updateNote(selectedNoteId!, { ban });
@@ -217,7 +231,9 @@ function updateNote(id: number, updates: Partial<Note>): void {
     const currentActualDuration = updates.type || note.type || 0;
     note.duration = updates.dotted
       ? currentActualDuration * 1.5
-      : currentActualDuration;
+      : updates.doubleDotted
+        ? currentActualDuration * 1.75
+        : currentActualDuration;
   }
   Object.assign(note, updates);
   autoAddBarLines();
@@ -271,8 +287,10 @@ function addNote(note: Omit<Note, "id">, insertAfterId?: number): void {
 
   // autoAddBarLines 重建了数组，用 ID 找新位置
   const newNoteIdx = score.notes.findIndex((n) => n.id === newNote.id);
-  renderer.setCursorPosition(newNoteIdx !== -1 ? newNoteIdx + 1 : score.notes.length);
-  
+  renderer.setCursorPosition(
+    newNoteIdx !== -1 ? newNoteIdx + 1 : score.notes.length,
+  );
+
   setStatus(`已添加音符 ${note.value} (时值: ${lastDuration}拍)`);
 }
 
@@ -324,7 +342,7 @@ function importJson(): void {
         score = importedScore;
         selectedNoteId = null;
         selectionManager.clearSelection();
-        
+
         autoAddBarLines();
         render();
 
@@ -532,9 +550,13 @@ function pasteCopiedNotes(): void {
 
   // autoAddBarLines 重建了数组，用最后一个粘贴音符的 ID 找新位置
   const lastPastedNote = newNotes[newNotes.length - 1];
-  const lastPastedIdx = score.notes.findIndex((n) => n.id === lastPastedNote.id);
-  renderer.setCursorPosition(lastPastedIdx !== -1 ? lastPastedIdx + 1 : score.notes.length);
-  
+  const lastPastedIdx = score.notes.findIndex(
+    (n) => n.id === lastPastedNote.id,
+  );
+  renderer.setCursorPosition(
+    lastPastedIdx !== -1 ? lastPastedIdx + 1 : score.notes.length,
+  );
+
   setStatus(`已粘贴 ${newNotes.length} 个音符`);
 }
 
@@ -552,7 +574,7 @@ const selectionManager = new SelectionManager(
   () => {
     // 音符面板更新回调
     updateNotePanel();
-  }
+  },
 );
 
 // MIDI音符转简谱（C调）
@@ -604,6 +626,7 @@ async function initMidi(): Promise<void> {
           type: lastDuration,
           duration: lastDuration,
           dotted: false,
+          doubleDotted: false,
           ban: 0,
           yan: 0,
           lineBreak: false,
@@ -667,7 +690,9 @@ container.addEventListener(
     renderer.selectNote(selectedNoteId);
     renderer.setCursorAtNote(selectedNoteId);
     updateNotePanel();
-    setStatus(`已选择音符 ID:${selectedNoteId}, 时值: ${score.notes.find((n) => n.id === selectedNoteId)?.duration || 0}拍`);
+    setStatus(
+      `已选择音符 ID:${selectedNoteId}, 时值: ${score.notes.find((n) => n.id === selectedNoteId)?.duration || 0}拍`,
+    );
   },
   { capture: true },
 );
@@ -754,11 +779,30 @@ window.addEventListener("keydown", (e) => {
           type: lastDuration,
           duration: lastDuration === 99 ? score.beatsPerBar : lastDuration,
           dotted: false,
+          doubleDotted: false,
           ban: 0,
           yan: 0,
           lineBreak: false,
         },
         undefined, // 不指定插入位置，使用光标位置
+      );
+      e.preventDefault();
+      return;
+    }
+    if (e.key === " ") {
+      addNote(
+        {
+          value: "space",
+          octave: 0,
+          type: null,
+          duration: 0,
+          dotted: false,
+          doubleDotted: false,
+          ban: 0,
+          yan: 0,
+          lineBreak: false,
+        },
+        undefined,
       );
       e.preventDefault();
       return;
@@ -910,8 +954,7 @@ btnPageUp?.addEventListener("click", () => {
 
 btnPageDown?.addEventListener("click", () => {
   const rowsPerPage = Math.floor(container.clientHeight / 80);
-  const step =
-    rowsPerPage * Math.floor((container.clientWidth - 80) / 40);
+  const step = rowsPerPage * Math.floor((container.clientWidth - 80) / 40);
   const currentIdx =
     selectedNoteId !== null ? allNoteIds.indexOf(selectedNoteId) : -1;
   const newIdx = Math.min(allNoteIds.length - 1, currentIdx + step);
