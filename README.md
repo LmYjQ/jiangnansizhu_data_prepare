@@ -9,6 +9,7 @@ npm run tauri dev
 ```
 ```
 npm run tauri build
+npm run tauri build -- --target universal-apple-darwin
 ```
 
 net stop winnat
