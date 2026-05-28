@@ -5,7 +5,8 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 
-
+# python analyze_markov.py full
+# python analyze_markov.py value
 def extract_pitch(note, mode='full'):
     """Extract pitch from a note.
     mode='full': returns (value, octave) tuple
@@ -28,7 +29,7 @@ def analyze_note_2gram(json_file, mode='full'):
     prev_note = None
 
     for note in notes:
-        if note['value'] == 'bar':
+        if note['value'] in ['bar','space']:
             continue
         pitch = extract_pitch(note, mode)
 

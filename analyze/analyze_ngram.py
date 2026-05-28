@@ -16,7 +16,7 @@ def get_beat_words(notes):
     beat_position = 0.0
 
     for note in notes:
-        if note['value'] == 'bar':
+        if note['value'] in ['bar', 'space']:
             continue
         beat_notes.append(note_to_key(note))
         duration_cumulative += note['duration']
@@ -43,19 +43,20 @@ def analyze_ngram(json_file, n=2):
     words = get_beat_words(notes)
 
     for i in range(len(words) - n + 1):
-        ngram_keys = tuple(words[i + j][1] for j in range(n))
+        # Each beat's notes joined into a string
+        beat_strs = tuple(' '.join(words[i + j][1]) for j in range(n))
         end_pos = words[i + n - 1][0]
         # Collect all notes in this ngram
         ngram_notes = []
         for j in range(n):
             ngram_notes.extend(words[i + j][1])
-        ngrams.append((ngram_keys, end_pos, json_file, ngram_notes))
+        ngrams.append((beat_strs, end_pos, json_file, ngram_notes))
 
     return ngrams
 
 
 if __name__ == '__main__':
-    N = 12
+    N = 2
 
     dataset_dir = 'D:/code/music/qmx_reader/dataset_da'
     all_ngrams = []
@@ -69,8 +70,8 @@ if __name__ == '__main__':
 
     result = defaultdict(lambda: {"count": 0, "occurrences": []})
 
-    for ngram_keys, beat_pos, filepath, ngram_notes in all_ngrams:
-        key = " | ".join(ngram_keys)
+    for beat_strs, beat_pos, filepath, ngram_notes in all_ngrams:
+        key = " | ".join(beat_strs)
         result[key]["count"] += 1
         result[key]["occurrences"].append({
             "file": os.path.basename(filepath),

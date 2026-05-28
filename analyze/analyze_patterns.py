@@ -15,7 +15,7 @@ def get_beat_patterns(notes):
     beat_position = 0.0
 
     for note in notes:
-        if note['value'] == 'bar':
+        if note['value'] in ['bar', 'space']:
             continue
         beat_notes.append(note_to_key(note))
         duration_cumulative += note['duration']
@@ -43,7 +43,7 @@ def analyze_patterns(json_file):
     pattern_notes = []
 
     for note in notes:
-        if note['value'] == 'bar':
+        if note['value'] in ['bar', 'space']:
             continue
         pattern_notes.append(note)
         duration_cumulative += note['duration']
