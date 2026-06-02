@@ -5,8 +5,8 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 
-# python analyze_markov.py full
-# python analyze_markov.py value
+# python analyze/analyze_markov.py full
+# python analyze/analyze_markov.py value
 def extract_pitch(note, mode='full'):
     """Extract pitch from a note.
     mode='full': returns (value, octave) tuple
@@ -44,12 +44,19 @@ def analyze_note_2gram(json_file, mode='full'):
 if __name__ == '__main__':
     # Parse mode from command line argument
     mode = 'full'
-    if len(sys.argv) > 1:
-        if sys.argv[1] == 'value':
-            mode = 'value'
-    print(f"Running in mode: {mode}")
-
-    dataset_dir = 'D:/code/music/qmx_reader/dataset_da'
+    if len(sys.argv) > 2:
+        mode = sys.argv[1]
+        dataset_dir = sys.argv[2]
+    elif len(sys.argv) > 1:
+        if sys.argv[1] in ('full', 'value'):
+            mode = sys.argv[1]
+            dataset_dir = 'D:/code/music/qmx_reader/dataset_final8'
+        else:
+            dataset_dir = sys.argv[1]
+    else:
+        dataset_dir = 'D:/code/music/qmx_reader/dataset_final8'
+    suffix = os.path.basename(dataset_dir)
+    print(f"Running in mode: {mode}, dataset: {dataset_dir}")
     all_pairs = []
 
     for filename in os.listdir(dataset_dir):
@@ -100,7 +107,7 @@ if __name__ == '__main__':
         "prob": {str(p): {str(q): prob_dict[p][q] for q in pitches} for p in pitches},
         "occurrences": {f"{pitch_label(p)}|{pitch_label(q)}": occurrences[(p, q)] for p in pitches for q in pitches if count_matrix[p][q] > 0}
     }
-    output_path = f"transition_prob_{mode}.json"
+    output_path = f"transition_prob_{mode}_{suffix}.json"
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(json_output, f, ensure_ascii=False, indent=2)
     print(f"Output: {output_path}")
@@ -115,15 +122,15 @@ if __name__ == '__main__':
     ax.set_yticklabels([pitch_label(p) for p in pitches[::-1]])
     ax.set_xlabel('Next Pitch')
     ax.set_ylabel('Current Pitch')
-    ax.set_title(f'Markov Pitch Transition Probability Matrix (mode={mode})')
+    ax.set_title(f'Markov Pitch Transition Probability Matrix (mode={mode}, dataset={suffix})')
 
     for i in range(len(pitches)):
         for j in range(len(pitches)):
             val = prob_matrix[i, j]
             color = 'white' if val > 0.5 else 'black'
-            ax.text(j, i, f'{val:.2f}', ha='center', va='center', color=color, fontsize=8)
+            ax.text(j, i, f'{val:.3f}', ha='center', va='center', color=color, fontsize=7)
 
     plt.colorbar(im, ax=ax, label='Probability')
     plt.tight_layout()
-    plt.savefig(f"transition_prob_{mode}.png", dpi=150)
-    print(f"Output: transition_prob_{mode}.png")
+    plt.savefig(f"transition_prob_{mode}_{suffix}.png", dpi=150)
+    print(f"Output: transition_prob_{mode}_{suffix}.png")

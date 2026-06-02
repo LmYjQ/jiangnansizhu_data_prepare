@@ -80,7 +80,12 @@ def generate_json(all_patterns):
     return result
 
 if __name__ == '__main__':
-    dataset_dir = 'D:/code/music/qmx_reader/dataset_da'
+    import sys
+    if len(sys.argv) > 1:
+        dataset_dir = sys.argv[1]
+    else:
+        dataset_dir = 'D:/code/music/qmx_reader/dataset_jin'
+    suffix = os.path.basename(dataset_dir)
     all_patterns = defaultdict(list)
 
     for filename in os.listdir(dataset_dir):
@@ -92,7 +97,7 @@ if __name__ == '__main__':
                 all_patterns[pattern].extend(locations)
 
     json_output = generate_json(all_patterns)
-    output_path = f"transition_pattern_agg.json"
+    output_path = f"transition_pattern_{suffix}.json"
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(json_output, f, ensure_ascii=False, indent=2)
     print(f"Output: {output_path}, total patterns: {len(json_output)}")

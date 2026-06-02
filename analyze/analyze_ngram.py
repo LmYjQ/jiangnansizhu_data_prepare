@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from collections import defaultdict
 
 
@@ -56,9 +57,13 @@ def analyze_ngram(json_file, n=2):
 
 
 if __name__ == '__main__':
-    N = 2
+    N = 5
 
-    dataset_dir = 'D:/code/music/qmx_reader/dataset_da'
+    if len(sys.argv) > 1:
+        dataset_dir = sys.argv[1]
+    else:
+        dataset_dir = 'D:/code/music/qmx_reader/dataset_final8'
+    suffix = os.path.basename(dataset_dir)
     all_ngrams = []
 
     for filename in os.listdir(dataset_dir):
@@ -81,7 +86,7 @@ if __name__ == '__main__':
 
     sorted_result = {k: v for k, v in sorted(result.items(), key=lambda x: -x[1]["count"]) if v["count"] > 1}
 
-    output_path = f"transition_{N}gram.json"
+    output_path = f"transition_{N}gram_{suffix}.json"
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(sorted_result, f, ensure_ascii=False, indent=2)
     print(f"Output: {output_path}, total {N}-grams: {len(sorted_result)}")
