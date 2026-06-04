@@ -3,3 +3,7 @@ jianpu_annotator_tauri/dist
 jianpu_annotator_tauri/src-tauri/target
 .DS_Store
 */.DS_Store
+
+jianpu_annotator_tauri/src-tauri/icons/
+jianpu_annotator_tauri/*.jpg
+*.qmx
