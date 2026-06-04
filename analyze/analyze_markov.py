@@ -100,9 +100,22 @@ if __name__ == '__main__':
     def pitch_label(p):
         return f"{p[0]}_{p[1]}" if isinstance(p, tuple) else str(p)
 
+    # ── 输出原始计数 JSON ─────────────────────────────────────────────
+    raw_count_output = {
+        "mode": mode,
+        "description": "原始计数矩阵，未做 normalize",
+        "pitches": [pitch_label(p) for p in pitches],
+        "count_matrix": [[count_matrix[p][q] for q in pitches] for p in pitches],
+    }
+    raw_path = f"transition_raw_count_{mode}_{suffix}.json"
+    with open(raw_path, 'w', encoding='utf-8') as f:
+        json.dump(raw_count_output, f, ensure_ascii=False, indent=2)
+    print(f"Output (raw count): {raw_path}")
+
+    # ── 输出归一化概率 JSON（保持兼容性）───────────────────────────────
     json_output = {
         "mode": mode,
-        "pitches": pitches,
+        "pitches": [pitch_label(p) for p in pitches],
         "count": {str(p): {str(q): count_matrix[p][q] for q in pitches} for p in pitches},
         "prob": {str(p): {str(q): prob_dict[p][q] for q in pitches} for p in pitches},
         "occurrences": {f"{pitch_label(p)}|{pitch_label(q)}": occurrences[(p, q)] for p in pitches for q in pitches if count_matrix[p][q] > 0}
@@ -110,27 +123,46 @@ if __name__ == '__main__':
     output_path = f"transition_prob_{mode}_{suffix}.json"
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(json_output, f, ensure_ascii=False, indent=2)
-    print(f"Output: {output_path}")
+    print(f"Output (prob): {output_path}")
 
+    # ── matplotlib PNG：一上一下两张 ───────────────────────────────────
     prob_matrix = np.array([[prob_dict[p][q] for q in pitches] for p in pitches[::-1]])
+    count_matrix_for_plot = np.array([[count_matrix[p][q] for q in pitches] for p in pitches[::-1]])
 
-    fig, ax = plt.subplots(figsize=(8, 7))
-    im = ax.imshow(prob_matrix, cmap='YlOrRd', aspect='auto', vmin=0.0, vmax=1.0)
-    ax.set_xticks(range(len(pitches)))
-    ax.set_yticks(range(len(pitches)))
-    ax.set_xticklabels([pitch_label(p) for p in pitches])
-    ax.set_yticklabels([pitch_label(p) for p in pitches[::-1]])
-    ax.set_xlabel('Next Pitch')
-    ax.set_ylabel('Current Pitch')
-    ax.set_title(f'Markov Pitch Transition Probability Matrix (mode={mode}, dataset={suffix})')
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 14))
 
+    # 上：原始计数热力图
+    im1 = ax1.imshow(count_matrix_for_plot, cmap='YlOrRd', aspect='auto')
+    ax1.set_xticks(range(len(pitches)))
+    ax1.set_yticks(range(len(pitches)))
+    ax1.set_xticklabels([pitch_label(p) for p in pitches])
+    ax1.set_yticklabels([pitch_label(p) for p in pitches[::-1]])
+    ax1.set_xlabel('Next Pitch')
+    ax1.set_ylabel('Current Pitch')
+    ax1.set_title(f'Markov Pitch Transition Count Matrix (mode={mode}, dataset={suffix})')
+    for i in range(len(pitches)):
+        for j in range(len(pitches)):
+            val = count_matrix_for_plot[i, j]
+            color = 'white' if val > count_matrix_for_plot.max() * 0.5 else 'black'
+            ax1.text(j, i, f'{int(val)}', ha='center', va='center', color=color, fontsize=6)
+    plt.colorbar(im1, ax=ax1, label='Count')
+
+    # 下：归一化概率热力图
+    im2 = ax2.imshow(prob_matrix, cmap='YlOrRd', aspect='auto', vmin=0.0, vmax=1.0)
+    ax2.set_xticks(range(len(pitches)))
+    ax2.set_yticks(range(len(pitches)))
+    ax2.set_xticklabels([pitch_label(p) for p in pitches])
+    ax2.set_yticklabels([pitch_label(p) for p in pitches[::-1]])
+    ax2.set_xlabel('Next Pitch')
+    ax2.set_ylabel('Current Pitch')
+    ax2.set_title(f'Markov Pitch Transition Probability Matrix (mode={mode}, dataset={suffix})')
     for i in range(len(pitches)):
         for j in range(len(pitches)):
             val = prob_matrix[i, j]
             color = 'white' if val > 0.5 else 'black'
-            ax.text(j, i, f'{val:.3f}', ha='center', va='center', color=color, fontsize=7)
+            ax2.text(j, i, f'{val:.3f}', ha='center', va='center', color=color, fontsize=7)
+    plt.colorbar(im2, ax=ax2, label='Probability')
 
-    plt.colorbar(im, ax=ax, label='Probability')
     plt.tight_layout()
     plt.savefig(f"transition_prob_{mode}_{suffix}.png", dpi=150)
     print(f"Output: transition_prob_{mode}_{suffix}.png")
